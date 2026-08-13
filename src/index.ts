@@ -241,18 +241,23 @@ export function createApp(env: Env): Hono<AppEnv> {
     const mapped = await analyzeEmotions(router, config, {
       items: texts.map((text, index) => ({ id: String(index), text })),
     });
+    // The flat `labels` array cannot say "this axis was not scored", so an unavailable
+    // axis is indistinguishable from "nothing detected" here. That loss is why the route
+    // is deprecated — but it must not become an error: dropped items are routine at
+    // batch size, and failing the call would turn a partial result into a fake outage on
+    // the pipeline that still depends on this route. An empty label set asserts nothing,
+    // so nothing unsupported ships. Log the loss; /v1/emotions carries the real flag.
+    const lostAxes = mapped.items.filter((item) =>
+      Object.values(item.unavailable).some(Boolean),
+    ).length;
+    if (lostAxes > 0) {
+      logger.warn('emotion.compat_axis_lost', { item_count: texts.length, lost_items: lostAxes });
+    }
     logSuccess(c, texts.length, countChars(texts), mapped.model);
     return c.json({
-      results: mapped.items.map((item) => {
-        const row = item as {
-          emotion: { label: string; score: number }[];
-          buying_intent: { label: string; score: number }[];
-          deal_signals: { label: string; score: number }[];
-        };
-        return {
-          labels: [...row.emotion, ...row.buying_intent, ...row.deal_signals],
-        };
-      }),
+      results: mapped.items.map((item) => ({
+        labels: [...item.emotion, ...item.buying_intent, ...item.deal_signals],
+      })),
     });
   });
 

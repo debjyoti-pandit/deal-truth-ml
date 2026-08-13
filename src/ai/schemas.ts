@@ -21,13 +21,15 @@ export const emotionBlockSchema = z.object({
   score: unitScore,
 });
 
-// Partial rows are usable: a missing axis is an empty axis, not a schema failure
-// (strict parsing made the repair pass return empty items and the API saw all-empty labels).
+// Partial rows are usable: a missing axis must not fail parsing (strict parsing made the
+// repair pass return empty items and the API saw all-empty labels). It stays `undefined`
+// rather than defaulting to `[]` so the service can tell "scored, nothing confident" from
+// "never scored" — the two mean opposite things downstream and `[]` cannot carry both.
 export const emotionItemSchema = z.object({
   id: z.coerce.string(),
-  emotion: z.array(emotionBlockSchema).default([]),
-  buying_intent: z.array(emotionBlockSchema).default([]),
-  deal_signals: z.array(emotionBlockSchema).default([]),
+  emotion: z.array(emotionBlockSchema).optional(),
+  buying_intent: z.array(emotionBlockSchema).optional(),
+  deal_signals: z.array(emotionBlockSchema).optional(),
 });
 
 export const emotionResponseSchema = z.object({

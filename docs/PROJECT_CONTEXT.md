@@ -134,6 +134,17 @@ Example: “I absolutely love this product, but finance froze our budget until n
 - Buying intent: LOW / negative
 - Deal blocker: budget CRITICAL
 
+All three keys are always present in the response, and each carries an `unavailable` flag.
+`[]` means the axis was scored and nothing was confident; `unavailable: true` means it was
+never scored, so the empty array beside it is unknown rather than neutral. Without that
+distinction the API cannot tell a flat customer from a failed inference, and would render a
+gap as a finding — the same conflation the evidence layer exists to prevent. Axes degrade
+independently: one unavailable axis never invalidates the other two. Compat `/emotion` cannot
+express the flag (it flattens to one `labels` array), so an unscored item comes back with no
+labels and the gap is invisible to the caller — logged, not raised, because the API still
+depends on that route and models drop items from a batch routinely. Migrating the API to
+`/v1/emotions` is what actually closes this.
+
 ### Dropped from the original ONNX design
 
 Local GoEmotions, ModernBERT zero-shot, local BGE-small (384-dim), FLAN-T5, SeaweedFS as the production blob (Supabase Storage instead), Postgres on the VM. Docker in this repo is **only** local `wrangler dev` on :8081 — it does not ship model weights.

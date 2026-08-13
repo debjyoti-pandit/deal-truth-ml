@@ -20,6 +20,53 @@ const errorSchema = {
 
 const bearer = [{ BearerAuth: [] }];
 
+const scoredAxis = {
+  type: 'array',
+  description:
+    'Labels that cleared the threshold on this axis, highest score first. Empty means the axis was scored and nothing was confident — not that the axis is missing. Labels are never merged or deduped across axes.',
+  items: {
+    type: 'object',
+    required: ['label', 'score'],
+    properties: {
+      label: { type: 'string', example: 'enthusiastic' },
+      score: { type: 'number', minimum: 0, maximum: 1 },
+    },
+  },
+} as const;
+
+const emotionsResponseSchema = {
+  type: 'object',
+  required: ['items', 'model', 'request_id'],
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'emotion', 'buying_intent', 'deal_signals', 'unavailable'],
+        properties: {
+          id: { type: 'string', description: 'Echoes the request item id.' },
+          emotion: scoredAxis,
+          buying_intent: scoredAxis,
+          deal_signals: scoredAxis,
+          unavailable: {
+            type: 'object',
+            description:
+              'Per axis: true when that axis could not be scored at all. The empty array beside it means unknown, not neutral. Axes fail independently — one unavailable axis never invalidates the other two.',
+            required: ['emotion', 'buying_intent', 'deal_signals'],
+            properties: {
+              emotion: { type: 'boolean' },
+              buying_intent: { type: 'boolean' },
+              deal_signals: { type: 'boolean' },
+            },
+          },
+        },
+      },
+    },
+    model: { type: 'string' },
+    request_id: { type: 'string' },
+  },
+} as const;
+
 function jsonBody(schema: Record<string, unknown>, example?: unknown): Record<string, unknown> {
   return {
     required: true,
@@ -206,7 +253,23 @@ export const openApiSpec = {
           },
         ),
         responses: {
-          '200': jsonResponse('Emotion axes', { type: 'object', additionalProperties: true }),
+          '200': jsonResponse(
+            'Three independently-scored axes per item. All three keys are always present.',
+            emotionsResponseSchema,
+            {
+              items: [
+                {
+                  id: '1',
+                  emotion: [{ label: 'enthusiastic', score: 0.9 }],
+                  buying_intent: [{ label: 'negative', score: 0.7 }],
+                  deal_signals: [{ label: 'budget_blocker', score: 0.85 }],
+                  unavailable: { emotion: false, buying_intent: false, deal_signals: false },
+                },
+              ],
+              model: '@cf/qwen/qwen3-30b-a3b-fp8',
+              request_id: '…',
+            },
+          ),
         },
       },
     },

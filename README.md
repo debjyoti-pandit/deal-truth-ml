@@ -276,6 +276,20 @@ curl -sS -X POST "$BASE/v1/emotions" \
   }'
 ```
 
+All three axes always come back, plus an `unavailable` flag per axis. `[]` means the axis was
+scored and nothing was confident; `unavailable: true` means it was never scored, so the empty
+array is unknown rather than neutral:
+
+```json
+{
+  "id": "segment-1",
+  "emotion": [{ "label": "enthusiastic", "score": 0.9 }],
+  "buying_intent": [{ "label": "negative", "score": 0.7 }],
+  "deal_signals": [{ "label": "budget_blocker", "score": 0.85 }],
+  "unavailable": { "emotion": false, "buying_intent": false, "deal_signals": false }
+}
+```
+
 ### Embeddings
 
 ```bash
@@ -381,7 +395,7 @@ The API (`deal-truth-api`) treats an outage here as **infrastructure, never a de
 - Daily Workers AI neuron quota can exhaust (`QUOTA_EXCEEDED`).
 - Cloudflare may change model catalogue or IDs.
 - Models can hallucinate; the API evidence validator is the ship gate.
-- Compat `/emotion` is not GoEmotions — it is the sales-emotion taxonomy (emotion + buying-intent + deal-signal axes flattened for the compat route).
+- Compat `/emotion` is not GoEmotions — it is the sales-emotion taxonomy (emotion + buying-intent + deal-signal axes flattened for the compat route). The flat `labels` array cannot say "this axis was not scored", so an unscored item is indistinguishable from a silent one; it returns no labels and is logged as `emotion.compat_axis_lost`. Use `/v1/emotions` for per-axis degradation.
 - Compat `/classify` returns slug label ids (`pain_point`); the API maps them back to display labels (`pain point`) via `canonical_sales_label`.
 - Embeddings are **1024-dim** and the API matches with pgvector `vector(1024)` (migration `0002_embedding_1024`) — the earlier `VECTOR(384)` mismatch is resolved.
 - Compat classify/emotion chunk sequentially **inside one HTTP request**; the API client allows a 300s read timeout for large batches.

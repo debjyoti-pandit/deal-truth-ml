@@ -27,6 +27,10 @@ from this prompt”. The previous template hardcoded `"score":0.0`, the model ec
 every label fell below the 0.2 threshold — the API saw permanently empty emotion labels.
 Per axis the model returns only labels scoring ≥ 0.25 (max 4).
 
+That failure was hard to spot because an empty axis and an unscored axis looked identical on
+the wire. They no longer do: a row that omits an axis marks it `unavailable` in the response
+rather than defaulting it to `[]`. See [API.md](API.md#post-v1emotions).
+
 ## Stage 1 candidates (Qwen)
 
 Input: `[segmentId|speaker_role] text`. Output groups: pains, blockers, commitments, competitors, signals, objections, reality_checks. Each row: type, summary, segment_ids, optional confidence.

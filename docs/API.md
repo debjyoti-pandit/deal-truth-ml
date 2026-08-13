@@ -64,9 +64,49 @@ If `candidate_labels` is omitted, the catalogue is used. Fast path. Response lab
 
 ### `POST /v1/emotions`
 
-Request: `{ items: [{id, text}], threshold?, top_k? }`.
+Request: `{ items: [{id, text}], threshold?, top_k? }`. `threshold` defaults to `0.2`, `top_k` to `6`.
 
-Response per item: `emotion`, `buying_intent`, `deal_signals` arrays — never merged, never called buying intent under an emotion field.
+Response per item: `emotion`, `buying_intent` and `deal_signals` arrays, plus an `unavailable`
+object. **All four keys are always present** — an axis is never `null` and never omitted.
+
+```json
+{
+  "items": [
+    {
+      "id": "segment-1",
+      "emotion": [{ "label": "enthusiastic", "score": 0.9 }],
+      "buying_intent": [{ "label": "negative", "score": 0.7 }],
+      "deal_signals": [{ "label": "budget_blocker", "score": 0.85 }],
+      "unavailable": { "emotion": false, "buying_intent": false, "deal_signals": false }
+    }
+  ],
+  "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "request_id": "…"
+}
+```
+
+| Field                | Meaning                                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<axis>`             | Labels from that axis's taxonomy that scored ≥ `threshold`, highest first, capped at `top_k`. Duplicate labels within one axis collapse to the highest score. |
+| `<axis>: []`         | The axis **was** scored and nothing was confident. A genuinely flat utterance.                                                                                |
+| `unavailable.<axis>` | `true` when the axis could not be scored at all — the empty array beside it means **unknown, not neutral**.                                                   |
+
+Why the flag exists: `[]` alone cannot distinguish "the customer was neutral" from "we never
+got an answer", and the second must not be rendered as the first. Axes fail **independently**;
+one unavailable axis never invalidates the other two.
+
+An axis becomes `unavailable` when the model omits it from a row, drops the item from its
+response, or the inference call for that item's chunk fails. If **every** chunk fails the
+route returns `502 UPSTREAM_AI_ERROR` rather than a 200 of empty axes, so the API's
+`ML_*` → `PARTIAL` degradation still fires.
+
+Item ids must be unique — duplicates return `400 INVALID_REQUEST`. Scores are attributed by
+id, so two items sharing one id could not be told apart and the second would inherit the
+first's scores while reporting `unavailable: false`.
+
+**Labels stay namespaced to their axis.** `neutral` is a member of both `emotion` and
+`buying_intent` and means something different on each; the axes are never merged and never
+deduped against each other.
 
 ### `POST /v1/embeddings`
 
@@ -113,6 +153,15 @@ Each insight carries `segment_ids` only.
 | `POST /generate` | `{ prompt, max_tokens? }`                                          | `{ text }`                                    |
 
 The parser in `deal-truth/app/ml/__init__.py` accepts `results` / `data` / `items`.
+
+**Compat `/emotion` cannot carry the `unavailable` flag.** It flattens the three axes into
+one `labels` array, so an axis that was never scored is indistinguishable from one that
+scored nothing. The route still returns `200` in that case, deliberately: models drop items
+from a batch routinely, and failing the call would turn an ordinary partial result into a
+fake outage on the pipeline that still depends on this route. An unscored item simply comes
+back with no labels — it asserts nothing, so nothing unsupported ships, but the loss is
+invisible to the caller. It is logged as `emotion.compat_axis_lost`. This is the concrete
+reason the route is deprecated; use `/v1/emotions` for per-axis degradation.
 
 ## Consumer behavior (deal-truth-api)
 

@@ -25,12 +25,29 @@ function extractIds(prompt: string): string[] {
 export class FakeAi {
   failQuota = false;
   invalidJsonOnce = false;
+  /** Item ids whose chunk should fail upstream. Keyed on content, so the
+   *  ModelClient's internal retry of the same chunk fails too. */
+  failOnItemIds: string[] = [];
+  /** Replaces the default emotions row so a test can shape the axes it needs. */
+  emotionRow: Record<string, unknown> | null = null;
+  /** Item ids the model answers about but silently omits from its response. */
+  dropItemIds: string[] = [];
+  /** From this chunk index on, answer with ids 0..n instead of the requested ones —
+   *  the re-keying behaviour the positional fallback exists to absorb. */
+  rekeyChunksFrom: number | null = null;
+  private chunkIndex = -1;
   calls: { model: string; inputs: Record<string, unknown> }[] = [];
 
   async run(model: string, inputs: Record<string, unknown> = {}): Promise<unknown> {
     this.calls.push({ model, inputs });
     if (this.failQuota) {
       throw new Error('Workers AI quota exceeded: 10000 neurons');
+    }
+    if (this.failOnItemIds.length > 0) {
+      const text = allMessageText(inputs);
+      if (this.failOnItemIds.some((id) => text.includes(`id=${id} `))) {
+        throw new Error('Workers AI request failed for this chunk');
+      }
     }
     if (model.includes('embedding')) {
       const texts = Array.isArray(inputs.text)
@@ -79,7 +96,14 @@ export class FakeAi {
       });
     }
     if (prompt.includes('three independent axes')) {
-      const ids = extractIds(prompt);
+      this.chunkIndex += 1;
+      let ids = extractIds(prompt).filter((id) => !this.dropItemIds.includes(id));
+      if (this.rekeyChunksFrom !== null && this.chunkIndex >= this.rekeyChunksFrom) {
+        ids = ids.map((_, index) => String(index));
+      }
+      if (this.emotionRow) {
+        return JSON.stringify({ items: ids.map((id) => ({ id, ...this.emotionRow })) });
+      }
       return JSON.stringify({
         items: ids.map((id) => ({
           id,
