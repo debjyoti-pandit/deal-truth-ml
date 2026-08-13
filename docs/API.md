@@ -40,6 +40,14 @@ AI binding present, generation flag, model IDs, embedding dimension, batch limit
 
 Routing manifest: fast, quality, embeddings (with dimension), rerank, generation enabled.
 
+### `GET /v1/reference`
+
+Allowlisted markdown catalog (public, no bearer). Alias: `GET /api/v1/reference`.
+
+### `GET /v1/reference/{name}`
+
+Raw markdown for one allowlisted file (for example `API.md`, `MODELS.md`). Unknown names and path traversal return 404. Alias: `GET /api/v1/reference/{name}`.
+
 ### `GET /v1/sales-labels`
 
 Default 24-label catalogue: `id`, `display_name`, `hypothesis`, `category`, `threshold`.

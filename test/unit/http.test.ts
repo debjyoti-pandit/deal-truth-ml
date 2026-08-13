@@ -44,6 +44,36 @@ describe('auth and health', () => {
   });
 });
 
+describe('reference docs', () => {
+  it('lists allowlisted markdown without auth', async () => {
+    const app = createApp(testEnv(new FakeAi(), { INTERNAL_API_TOKEN: 'secret' }));
+    const response = await app.request('http://ml/v1/reference');
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { docs: { name: string; path: string }[] };
+    const names = new Set(body.docs.map((item) => item.name));
+    expect(names.has('API.md')).toBe(true);
+    expect(names.has('MODELS.md')).toBe(true);
+    expect(names.has('PROJECT_CONTEXT.md')).toBe(true);
+  });
+
+  it('serves markdown and the API path alias', async () => {
+    const app = createApp(testEnv(new FakeAi()));
+    const response = await app.request('http://ml/api/v1/reference/API.md');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toContain('text/markdown');
+    const text = await response.text();
+    expect(text).toContain('GET /v1/reference');
+  });
+
+  it('rejects path traversal and unknown names', async () => {
+    const app = createApp(testEnv(new FakeAi()));
+    const traversal = await app.request('http://ml/v1/reference/..%2F.env');
+    const unknown = await app.request('http://ml/v1/reference/.env');
+    expect(traversal.status).toBe(404);
+    expect(unknown.status).toBe(404);
+  });
+});
+
 describe('validation and errors', () => {
   it('returns BATCH_TOO_LARGE', async () => {
     const app = createApp(testEnv(new FakeAi(), { MAX_BATCH_SIZE: '1' }));

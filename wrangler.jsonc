@@ -22,4 +22,7 @@
   "observability": {
     "enabled": true,
   },
+  "rules": [
+    { "type": "Text", "globs": ["**/*.md"] },
+  ],
 }

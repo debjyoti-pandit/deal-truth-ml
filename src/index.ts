@@ -14,6 +14,7 @@ import { embedItems } from './services/embeddings';
 import { analyzeEmotions } from './services/emotions';
 import { generateText } from './services/generate';
 import { rerankPassages } from './services/rerank';
+import { getReferenceDoc, listReferenceDocs } from './reference';
 import type { AppVariables, Env } from './env';
 
 type AppEnv = { Bindings: Env; Variables: AppVariables };
@@ -21,6 +22,9 @@ type AppEnv = { Bindings: Env; Variables: AppVariables };
 const PROTECTED_PREFIXES = ['/v1/', '/classify', '/emotion', '/embed', '/generate'];
 
 function isProtected(path: string): boolean {
+  if (path === '/v1/reference' || path.startsWith('/v1/reference/')) {
+    return false;
+  }
   return PROTECTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix));
 }
 
@@ -120,6 +124,22 @@ export function createApp(env: Env): Hono<AppEnv> {
   );
 
   app.get('/v1/sales-labels', (c) => c.json({ labels: SALES_LABELS }));
+
+  const mountReference = (prefix: string) => {
+    app.get(`${prefix}/reference`, (c) => c.json({ docs: listReferenceDocs(`${prefix}/reference`) }));
+    app.get(`${prefix}/reference/:name`, (c) => {
+      const doc = getReferenceDoc(c.req.param('name'));
+      if (!doc) {
+        return c.json(
+          errorEnvelope(new AppError('INVALID_REQUEST', 'Unknown reference document.'), c.get('requestId')),
+          404,
+        );
+      }
+      return c.body(doc.body, 200, { 'Content-Type': 'text/markdown; charset=utf-8' });
+    });
+  };
+  mountReference('/v1');
+  mountReference('/api/v1');
 
   app.post('/v1/classify', async (c) => {
     const body = await c.req.json();

@@ -11,6 +11,7 @@ RUN npm ci
 
 COPY wrangler.jsonc tsconfig.json ./
 COPY src ./src
+COPY docs ./docs
 COPY worker-configuration.d.ts ./
 
 EXPOSE 8081

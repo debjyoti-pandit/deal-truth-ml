@@ -38,6 +38,11 @@ make dev      # wrangler on :8081 in the foreground
 
 Then start the API stack in `/Users/debjyoti_pandit/Work/github/deal-truth` with `make up` as you already do.
 
+Docs on a running Worker (also on the ML ngrok host):
+
+- Catalog: `http://localhost:8081/v1/reference` (alias `/api/v1/reference`)
+- Example: `http://localhost:8081/v1/reference/API.md`
+
 ---
 
 
