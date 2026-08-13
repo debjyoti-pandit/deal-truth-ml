@@ -1,4 +1,5 @@
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 import { parseJsonObject } from './json';
 
 export interface ChatMessage {
@@ -161,13 +162,27 @@ export class ModelClient {
   async run(model: string, inputs: Record<string, unknown>): Promise<unknown> {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      const started = Date.now();
+      logger.debug('ai.run.start', { model, attempt: attempt + 1 });
       try {
-        return await this.ai.run(model, inputs);
+        const result = await this.ai.run(model, inputs);
+        logger.info('ai.run.ok', {
+          model,
+          attempt: attempt + 1,
+          duration_ms: Date.now() - started,
+        });
+        return result;
       } catch (error) {
         if (error instanceof AppError) {
           throw error;
         }
         const mapped = mapUpstreamError(error);
+        logger.warn('ai.run.fail', {
+          model,
+          attempt: attempt + 1,
+          duration_ms: Date.now() - started,
+          error_code: mapped.code,
+        });
         if (mapped.code === 'QUOTA_EXCEEDED' || attempt === 1) {
           throw mapped;
         }
@@ -268,7 +283,11 @@ function extractRerank(payload: unknown, count: number): { index: number; score:
     }
     if (isRecord(row)) {
       const index =
-        typeof row.id === 'number' ? row.id : typeof row.index === 'number' ? row.index : fallbackIndex;
+        typeof row.id === 'number'
+          ? row.id
+          : typeof row.index === 'number'
+            ? row.index
+            : fallbackIndex;
       const score = Number(row.score ?? row.relevance_score ?? 0);
       return { index, score };
     }

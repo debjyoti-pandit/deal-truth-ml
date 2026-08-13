@@ -3,6 +3,7 @@ import { generatePrompt } from '../ai/prompts';
 import type { ModelRouter } from '../ai/router';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 
 export const GENERATE_TASKS = [
   'summary_fallback',
@@ -40,6 +41,11 @@ export async function generateText(
     throw new AppError('TEXT_TOO_LONG', 'Generation input exceeds the allowed size.');
   }
   const kind = parsed.data.task === 'qa_synthesis' ? 'quality' : 'fast';
+  logger.info('generate.start', {
+    task: parsed.data.task,
+    input_chars: parsed.data.input.length,
+    kind,
+  });
   const result = await router.text(kind, generatePrompt(parsed.data.task, parsed.data.input), {
     maxTokens: parsed.data.max_new_tokens,
     temperature: parsed.data.temperature,

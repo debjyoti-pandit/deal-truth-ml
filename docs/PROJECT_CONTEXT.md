@@ -41,11 +41,11 @@ Customer Truth, click-to-play evidence, Reality Check, Commitment Ledger, Deal K
 
 ## 2. Repositories
 
-| Repo | Path (local) | Responsibility | Hosting |
-|---|---|---|---|
+| Repo               | Path (local)                                    | Responsibility                                                           | Hosting                                                                                             |
+| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | `deal-truth` (api) | `/Users/debjyoti_pandit/Work/github/deal-truth` | FastAPI, Celery pipeline, evidence validator, reports, PyAI + ML clients | Oracle Always Free VM (2 OCPU / 12 GB): FastAPI, Celery, Valkey, Caddy. **No ML models on the VM.** |
-| `deal-truth-web` | (sibling, UI) | React + Tailwind upload/report/player | Cloudflare Pages |
-| `deal-truth-ml` | **this repo** | Authenticated model-routing API | Cloudflare Worker + Workers AI |
+| `deal-truth-web`   | (sibling, UI)                                   | React + Tailwind upload/report/player                                    | Cloudflare Pages                                                                                    |
+| `deal-truth-ml`    | **this repo**                                   | Authenticated model-routing API                                          | Cloudflare Worker + Workers AI                                                                      |
 
 Data lives in **Supabase Free** (PostgreSQL + pgvector + Storage), not on the VM.
 
@@ -78,11 +78,11 @@ Oracle Always Free VM     deal-truth-api          $0
 
 ### Why this shape
 
-| Option | Verdict |
-|---|---|
-| Everything on the 12 GB ARM VM | Too slow / inaccurate for 30B–120B inference |
-| Everything on Render Free | 512 MB, sleeps after 15 minutes, ~1 minute wake — demo risk |
-| Hybrid | Always-on API, strong hosted models, managed DB/storage, $0 |
+| Option                         | Verdict                                                     |
+| ------------------------------ | ----------------------------------------------------------- |
+| Everything on the 12 GB ARM VM | Too slow / inaccurate for 30B–120B inference                |
+| Everything on Render Free      | 512 MB, sleeps after 15 minutes, ~1 minute wake — demo risk |
+| Hybrid                         | Always-on API, strong hosted models, managed DB/storage, $0 |
 
 Oracle Always Free A1 is tied to the home region and can be unavailable or reclaimed. Prefer Mumbai (or Hyderabad) and measure PyAI latency after deploy. Fallback if Oracle capacity is refused: Render + QStash, same HTTP contracts.
 
@@ -183,18 +183,18 @@ Still open:
 
 ## 7. Decision log
 
-| Decision | Rationale |
-|---|---|
-| Drop local Qwen3-4B / llama.cpp | Too slow on modest hardware |
-| Drop self-hosted ONNX stack in this repo | Workers AI now hosts stronger models at $0 within 10k neurons/day |
-| Specialist routing + deterministic validator | Extraction is classification/judgment; evidence layer remains the product |
-| GPT-OSS-120B for quality, Qwen3-30B for volume | Neuron cost ~7× lower on Qwen input; 120B reserved for judge/reasoning |
-| Qwen3-Embedding 1024-dim + BGE rerank | Proper RAG instead of toy BGE-small search |
-| Sales taxonomy over GoEmotions | Domain is deal interest/hesitation, not Reddit-style emotion |
-| No close probability | Fake precision |
-| Seek-to-timestamp audio | No clip pre-generation |
-| Retry only infrastructure failures | Retrying semantic failure fabricates evidence |
-| Cloudflare Pages for UI | Do not spend VM CPU serving React |
+| Decision                                       | Rationale                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------- |
+| Drop local Qwen3-4B / llama.cpp                | Too slow on modest hardware                                               |
+| Drop self-hosted ONNX stack in this repo       | Workers AI now hosts stronger models at $0 within 10k neurons/day         |
+| Specialist routing + deterministic validator   | Extraction is classification/judgment; evidence layer remains the product |
+| GPT-OSS-120B for quality, Qwen3-30B for volume | Neuron cost ~7× lower on Qwen input; 120B reserved for judge/reasoning    |
+| Qwen3-Embedding 1024-dim + BGE rerank          | Proper RAG instead of toy BGE-small search                                |
+| Sales taxonomy over GoEmotions                 | Domain is deal interest/hesitation, not Reddit-style emotion              |
+| No close probability                           | Fake precision                                                            |
+| Seek-to-timestamp audio                        | No clip pre-generation                                                    |
+| Retry only infrastructure failures             | Retrying semantic failure fabricates evidence                             |
+| Cloudflare Pages for UI                        | Do not spend VM CPU serving React                                         |
 
 ---
 

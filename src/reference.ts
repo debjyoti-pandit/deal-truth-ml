@@ -24,7 +24,9 @@ const DOCS: Record<string, Omit<ReferenceDoc, 'name'>> = {
   'LICENSE_AUDIT.md': { title: 'License audit', body: licenseAudit },
 };
 
-export function listReferenceDocs(pathPrefix: string): { name: string; title: string; path: string }[] {
+export function listReferenceDocs(
+  pathPrefix: string,
+): { name: string; title: string; path: string }[] {
   return Object.entries(DOCS).map(([name, doc]) => ({
     name,
     title: doc.title,

@@ -1,8 +1,9 @@
 node_modules
-.wrangler
 dist
+.wrangler
 coverage
-*.md
-open_gong_hackathon_chat_export.md
-uv.lock
 package-lock.json
+worker-configuration.d.ts
+.dev.vars
+.env
+.env.local

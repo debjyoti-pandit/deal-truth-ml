@@ -1,4 +1,4 @@
-.PHONY: install setup login lint typecheck test test-live bootstrap check smoke dev up down restart docker-build compose-up compose-down deploy
+.PHONY: install setup login lint format format-check typecheck test test-live bootstrap check smoke dev up down restart docker-build compose-up compose-down deploy
 
 install:
 	npm install
@@ -22,6 +22,12 @@ setup: install bootstrap
 
 lint:
 	npm run lint
+
+format:
+	npm run format
+
+format-check:
+	npm run format:check
 
 typecheck:
 	npm run typecheck

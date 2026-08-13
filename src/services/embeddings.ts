@@ -3,6 +3,7 @@ import { l2Normalize } from '../ai/client';
 import type { ModelRouter } from '../ai/router';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 import { assertBatch } from '../api/validation';
 
 const requestSchema = z.object({
@@ -23,6 +24,10 @@ export async function embedItems(
     throw new AppError('INVALID_REQUEST', 'Invalid embeddings request.');
   }
   assertBatch(parsed.data.items, config);
+  logger.info('embed.start', {
+    item_count: parsed.data.items.length,
+    normalize: parsed.data.normalize,
+  });
   const vectors = await router.embed(parsed.data.items.map((item) => item.text));
   const items = parsed.data.items.map((item, index) => {
     const raw = vectors[index] ?? [];

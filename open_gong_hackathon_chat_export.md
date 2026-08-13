@@ -532,31 +532,31 @@ It treated the feature set as:
 
 ### Initial responsibility split
 
-| Capability | Implementation |
-|---|---|
-| Audio transcription | PyAI Hear |
-| Speaker diarization | PyAI Hear |
-| Segment timestamps | PyAI Hear |
-| Summary | local Qwen3 |
-| Sentiment | local Qwen3 |
-| Buying intent | local Qwen3 |
-| Objections | local Qwen3 |
-| Customer Truth | local Qwen3 + deterministic validator |
-| Reality Check | local Qwen3 |
-| Commitments | local Qwen3 |
-| Deal Killers | local Qwen3 |
-| Battlecard | local Qwen3 |
-| Follow-up | local Qwen3 |
-| Competitors | local Qwen3 |
-| Ask-the-call | BGE embeddings + pgvector + Qwen3 |
-| Talk ratio | Python |
-| Evidence validation | Python |
-| Exact audio playback | browser timestamps |
-| Blob | SeaweedFS |
-| DB | PostgreSQL |
-| Queue | Valkey |
-| Worker | Celery |
-| LLM runtime | llama.cpp |
+| Capability           | Implementation                        |
+| -------------------- | ------------------------------------- |
+| Audio transcription  | PyAI Hear                             |
+| Speaker diarization  | PyAI Hear                             |
+| Segment timestamps   | PyAI Hear                             |
+| Summary              | local Qwen3                           |
+| Sentiment            | local Qwen3                           |
+| Buying intent        | local Qwen3                           |
+| Objections           | local Qwen3                           |
+| Customer Truth       | local Qwen3 + deterministic validator |
+| Reality Check        | local Qwen3                           |
+| Commitments          | local Qwen3                           |
+| Deal Killers         | local Qwen3                           |
+| Battlecard           | local Qwen3                           |
+| Follow-up            | local Qwen3                           |
+| Competitors          | local Qwen3                           |
+| Ask-the-call         | BGE embeddings + pgvector + Qwen3     |
+| Talk ratio           | Python                                |
+| Evidence validation  | Python                                |
+| Exact audio playback | browser timestamps                    |
+| Blob                 | SeaweedFS                             |
+| DB                   | PostgreSQL                            |
+| Queue                | Valkey                                |
+| Worker               | Celery                                |
+| LLM runtime          | llama.cpp                             |
 
 ### System architecture
 
@@ -866,23 +866,27 @@ metrics          intelligence     embeddings
 ### Named errors
 
 PyAI:
+
 - PYAI_AUTH_FAILED
 - PYAI_SUBMIT_FAILED
 - PYAI_JOB_FAILED
 - PYAI_JOB_TIMEOUT
 
 LLM:
+
 - LLM_TIMEOUT
 - LLM_INVALID_JSON
 - LLM_SCHEMA_MISMATCH
 - LLM_CONTEXT_TOO_LARGE
 
 Evidence:
+
 - EVIDENCE_SEGMENT_MISSING
 - EVIDENCE_WRONG_SPEAKER
 - EVIDENCE_UNSUPPORTED_CLAIM
 
 Storage:
+
 - BLOB_UPLOAD_FAILED
 - BLOB_NOT_FOUND
 - DATABASE_WRITE_FAILED
@@ -1010,8 +1014,6 @@ actual audio plays
 
 > we need to host it also. so local qwen and everything is not eligible. it should be oss but hostible as we need to demo it. also our system is not that strong to run qwen fast. we need to find oss alternative which is hosted and have best result example - roberta go emotion model or even something even better
 
-
-
 ## Turn 25 — Assistant
 
 The architecture should change again.
@@ -1024,21 +1026,21 @@ The better design is:
 
 ### Recommended hosted model stack
 
-| Requirement | Model | Why |
-|---|---|---|
-| STT + diarization | **PyAI Hear** | Core required PyAI usage |
-| Emotions | **SamLowe/roberta-base-go_emotions** | 28 emotions + neutral, MIT |
-| Sales classifications | **ModernBERT-base-zeroshot-v2.0** | Arbitrary labels, Apache-2.0, small ONNX |
-| Higher-accuracy fallback | **DeBERTa-v3-base-zeroshot-v2.0-c** | Better accuracy, heavier |
-| Embeddings/search | **BAAI/bge-small-en-v1.5** | 33.4M params, MIT |
-| Generation/summarization | **FLAN-T5-small** initially | ~308 MB weights, Apache-2.0 |
-| Better generation if server allows | **FLAN-T5-base** | Better quality, ~990 MB weights |
-| Runtime | **ONNX Runtime** | CPU-oriented, MIT |
-| Blob | **SeaweedFS** | OSS S3-compatible |
-| DB | PostgreSQL + pgvector | OSS |
-| Queue | Valkey | OSS |
-| Backend | FastAPI + Celery | OSS |
-| UI | React + Tailwind | OSS |
+| Requirement                        | Model                                | Why                                      |
+| ---------------------------------- | ------------------------------------ | ---------------------------------------- |
+| STT + diarization                  | **PyAI Hear**                        | Core required PyAI usage                 |
+| Emotions                           | **SamLowe/roberta-base-go_emotions** | 28 emotions + neutral, MIT               |
+| Sales classifications              | **ModernBERT-base-zeroshot-v2.0**    | Arbitrary labels, Apache-2.0, small ONNX |
+| Higher-accuracy fallback           | **DeBERTa-v3-base-zeroshot-v2.0-c**  | Better accuracy, heavier                 |
+| Embeddings/search                  | **BAAI/bge-small-en-v1.5**           | 33.4M params, MIT                        |
+| Generation/summarization           | **FLAN-T5-small** initially          | ~308 MB weights, Apache-2.0              |
+| Better generation if server allows | **FLAN-T5-base**                     | Better quality, ~990 MB weights          |
+| Runtime                            | **ONNX Runtime**                     | CPU-oriented, MIT                        |
+| Blob                               | **SeaweedFS**                        | OSS S3-compatible                        |
+| DB                                 | PostgreSQL + pgvector                | OSS                                      |
+| Queue                              | Valkey                               | OSS                                      |
+| Backend                            | FastAPI + Celery                     | OSS                                      |
+| UI                                 | React + Tailwind                     | OSS                                      |
 
 ModernBERT zero-shot was selected for the hackathon because the INT8 ONNX checkpoint is compact and CPU-friendly.
 

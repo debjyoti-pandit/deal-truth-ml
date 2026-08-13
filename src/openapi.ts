@@ -63,7 +63,8 @@ export const openApiSpec = {
       BearerAuth: {
         type: 'http',
         scheme: 'bearer',
-        description: 'Required only when INTERNAL_API_TOKEN is set. Local default is empty (auth off).',
+        description:
+          'Required only when INTERNAL_API_TOKEN is set. Local default is empty (auth off).',
       },
     },
     schemas: {
@@ -76,7 +77,12 @@ export const openApiSpec = {
         tags: ['health'],
         operationId: 'healthLive',
         summary: 'Liveness',
-        responses: { '200': jsonResponse('Worker is up', { type: 'object', properties: { status: { type: 'string', example: 'ok' } } }) },
+        responses: {
+          '200': jsonResponse('Worker is up', {
+            type: 'object',
+            properties: { status: { type: 'string', example: 'ok' } },
+          }),
+        },
       },
     },
     '/health/ready': {
@@ -112,7 +118,9 @@ export const openApiSpec = {
         operationId: 'listModels',
         summary: 'Model routing manifest',
         security: bearer,
-        responses: { '200': jsonResponse('Models', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Models', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/sales-labels': {
@@ -121,7 +129,9 @@ export const openApiSpec = {
         operationId: 'listSalesLabels',
         summary: 'Default 24-label catalogue',
         security: bearer,
-        responses: { '200': jsonResponse('Labels', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Labels', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/classify': {
@@ -195,7 +205,9 @@ export const openApiSpec = {
             items: [{ id: '1', text: 'This is impressive, but finance froze the budget.' }],
           },
         ),
-        responses: { '200': jsonResponse('Emotion axes', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Emotion axes', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/embeddings': {
@@ -222,7 +234,9 @@ export const openApiSpec = {
           },
           { items: [{ id: '1', text: 'security approval required' }] },
         ),
-        responses: { '200': jsonResponse('Vectors', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Vectors', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/rerank': {
@@ -253,7 +267,9 @@ export const openApiSpec = {
             passages: [{ id: 'p1', text: 'We need SOC2 before we can buy.' }],
           },
         ),
-        responses: { '200': jsonResponse('Ranked passages', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Ranked passages', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/generate': {
@@ -277,7 +293,9 @@ export const openApiSpec = {
           },
           { task: 'summary_fallback', input: 'Customer needs security review before purchase.' },
         ),
-        responses: { '200': jsonResponse('Generated text', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Generated text', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/analyze-call': {
@@ -307,11 +325,17 @@ export const openApiSpec = {
           },
           {
             segments: [
-              { id: 's1', speaker_role: 'customer', text: 'We cannot buy until security approves it.' },
+              {
+                id: 's1',
+                speaker_role: 'customer',
+                text: 'We cannot buy until security approves it.',
+              },
             ],
           },
         ),
-        responses: { '200': jsonResponse('Call analysis', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Call analysis', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/reference': {
@@ -319,7 +343,9 @@ export const openApiSpec = {
         tags: ['reference'],
         operationId: 'listReference',
         summary: 'Allowlisted markdown catalog',
-        responses: { '200': jsonResponse('Catalog', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('Catalog', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/v1/reference/{name}': {
@@ -336,7 +362,10 @@ export const openApiSpec = {
           },
         ],
         responses: {
-          '200': { description: 'Markdown', content: { 'text/markdown': { schema: { type: 'string' } } } },
+          '200': {
+            description: 'Markdown',
+            content: { 'text/markdown': { schema: { type: 'string' } } },
+          },
           '404': jsonResponse('Unknown document', errorSchema),
         },
       },
@@ -358,7 +387,9 @@ export const openApiSpec = {
           },
           { texts: ['We cannot buy until security approves it.'] },
         ),
-        responses: { '200': jsonResponse('results[].labels', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('results[].labels', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/emotion': {
@@ -375,7 +406,9 @@ export const openApiSpec = {
           },
           { texts: ['This is impressive, but there is no budget this year.'] },
         ),
-        responses: { '200': jsonResponse('results[].labels', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('results[].labels', { type: 'object', additionalProperties: true }),
+        },
       },
     },
     '/embed': {
@@ -392,7 +425,12 @@ export const openApiSpec = {
           },
           { texts: ['security approval required'] },
         ),
-        responses: { '200': jsonResponse('results[].embedding', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('results[].embedding', {
+            type: 'object',
+            additionalProperties: true,
+          }),
+        },
       },
     },
     '/generate': {
@@ -412,7 +450,9 @@ export const openApiSpec = {
           },
           { prompt: 'Summarize the call.', max_tokens: 40 },
         ),
-        responses: { '200': jsonResponse('{ text }', { type: 'object', additionalProperties: true }) },
+        responses: {
+          '200': jsonResponse('{ text }', { type: 'object', additionalProperties: true }),
+        },
       },
     },
   },

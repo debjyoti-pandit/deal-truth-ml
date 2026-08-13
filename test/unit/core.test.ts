@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { extractBearer, timingSafeEqual } from '../../src/core/auth';
 import { AppError } from '../../src/core/errors';
 import { extractJsonText, parseJsonObject } from '../../src/ai/json';
@@ -6,6 +6,7 @@ import { extractGeneratedText, l2Normalize } from '../../src/ai/client';
 import { SALES_LABELS } from '../../src/taxonomies/sales-labels';
 import { BUYING_INTENT, DEAL_SIGNALS, SALES_EMOTIONS } from '../../src/taxonomies/emotions';
 import { loadConfig } from '../../src/core/config';
+import { configureLogger, logger, redact } from '../../src/core/logging';
 import { FakeAi, testEnv } from '../helpers';
 
 describe('timingSafeEqual', () => {
@@ -75,7 +76,9 @@ describe('extractGeneratedText', () => {
         id: 'chatcmpl-123',
         object: 'chat.completion',
         model: '@cf/qwen/qwen3-30b-a3b-fp8',
-        choices: [{ message: { role: 'assistant', content: '{"items":[]}' }, finish_reason: 'stop' }],
+        choices: [
+          { message: { role: 'assistant', content: '{"items":[]}' }, finish_reason: 'stop' },
+        ],
       }),
     ).toBe('{"items":[]}');
   });
@@ -125,9 +128,34 @@ describe('taxonomies', () => {
 
 describe('config', () => {
   it('loads defaults and env overrides', () => {
-    const config = loadConfig(testEnv(new FakeAi(), { ENABLE_GENERATION: 'false', MAX_BATCH_SIZE: '8' }));
+    const config = loadConfig(
+      testEnv(new FakeAi(), { ENABLE_GENERATION: 'false', MAX_BATCH_SIZE: '8' }),
+    );
     expect(config.enableGeneration).toBe(false);
     expect(config.maxBatchSize).toBe(8);
     expect(config.embeddingDimension).toBe(1024);
+  });
+});
+
+describe('logging', () => {
+  it('redacts bearer tokens', () => {
+    expect(redact('Authorization Bearer secret-token-value')).toContain('[redacted]');
+    expect(redact('Authorization Bearer secret-token-value')).not.toContain('secret-token-value');
+  });
+
+  it('omits transcript fields and respects LOG_LEVEL', () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((line: string) => {
+      lines.push(String(line));
+    });
+    configureLogger('info');
+    logger.debug('classify.chunk', { offset: 0 });
+    logger.info('classify.start', { item_count: 3, text: 'hi mary thanks for joining' });
+    spy.mockRestore();
+    expect(lines.some((line) => line.includes('classify.chunk'))).toBe(false);
+    const start = lines.find((line) => line.includes('classify.start'));
+    expect(start).toBeTruthy();
+    expect(start).toContain('[omitted]');
+    expect(start).not.toContain('hi mary');
   });
 });

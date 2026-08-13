@@ -54,28 +54,26 @@ Alias matching the Deal Truth API: http://localhost:8081/api/v1/reference
 
 Public host after `make up`: `https://deal-truth-ml-ngrok.ngrok-free.app`.
 
-| What | Local | Public |
-|---|---|---|
-| Swagger UI | http://localhost:8081/docs | https://deal-truth-ml-ngrok.ngrok-free.app/docs |
-| OpenAPI JSON | http://localhost:8081/openapi.json | https://deal-truth-ml-ngrok.ngrok-free.app/openapi.json |
-| Doc catalog (JSON) | http://localhost:8081/v1/reference | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference |
-| Index | http://localhost:8081/v1/reference/README.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/README.md |
-| HTTP API | http://localhost:8081/v1/reference/API.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/API.md |
-| Models | http://localhost:8081/v1/reference/MODELS.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/MODELS.md |
-| Prompts | http://localhost:8081/v1/reference/PROMPTS.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/PROMPTS.md |
-| Hosting | http://localhost:8081/v1/reference/HOSTING.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/HOSTING.md |
-| Deployment | http://localhost:8081/v1/reference/DEPLOYMENT.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/DEPLOYMENT.md |
-| Project context | http://localhost:8081/v1/reference/PROJECT_CONTEXT.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/PROJECT_CONTEXT.md |
-| License audit | http://localhost:8081/v1/reference/LICENSE_AUDIT.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/LICENSE_AUDIT.md |
-| Health | http://localhost:8081/health/live | https://deal-truth-ml-ngrok.ngrok-free.app/health/live |
+| What               | Local                                                 | Public                                                                     |
+| ------------------ | ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| Swagger UI         | http://localhost:8081/docs                            | https://deal-truth-ml-ngrok.ngrok-free.app/docs                            |
+| OpenAPI JSON       | http://localhost:8081/openapi.json                    | https://deal-truth-ml-ngrok.ngrok-free.app/openapi.json                    |
+| Doc catalog (JSON) | http://localhost:8081/v1/reference                    | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference                    |
+| Index              | http://localhost:8081/v1/reference/README.md          | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/README.md          |
+| HTTP API           | http://localhost:8081/v1/reference/API.md             | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/API.md             |
+| Models             | http://localhost:8081/v1/reference/MODELS.md          | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/MODELS.md          |
+| Prompts            | http://localhost:8081/v1/reference/PROMPTS.md         | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/PROMPTS.md         |
+| Hosting            | http://localhost:8081/v1/reference/HOSTING.md         | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/HOSTING.md         |
+| Deployment         | http://localhost:8081/v1/reference/DEPLOYMENT.md      | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/DEPLOYMENT.md      |
+| Project context    | http://localhost:8081/v1/reference/PROJECT_CONTEXT.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/PROJECT_CONTEXT.md |
+| License audit      | http://localhost:8081/v1/reference/LICENSE_AUDIT.md   | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/LICENSE_AUDIT.md   |
+| Health             | http://localhost:8081/health/live                     | https://deal-truth-ml-ngrok.ngrok-free.app/health/live                     |
 
 Repo copies: [docs/README.md](docs/README.md). Same catalog is also at `/api/v1/reference`.
 
 Stop with `make down`. After Worker code changes: `make restart`.
 
 ---
-
-
 
 ## Local stack with the API (Docker)
 
@@ -90,17 +88,13 @@ deal-truth-ml wrangler  →  http://localhost:8081   + ngrok :4041
 
 Use **localhost:8081** when the API is on the same machine. Use the **ML ngrok HTTPS URL** when the API is in Docker on Linux without host gateway, on another machine, or on the Oracle VM.
 
-
-
 ### Env in **this** repo
 
-
-| File | Vars | Notes |
-| --- | --- | --- |
-| [`.dev.vars`](.dev.vars.example) | `INTERNAL_API_TOKEN=` | Wrangler secret. **Leave empty locally** so the API needs no Bearer. |
-| [`.env`](.env.example) | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ML_PORT=8081` | Cloudflare token only if you are not using `wrangler login`. |
-| [`.env`](.env.example) | `APP_NAME=deal-truth-ml`, `NGROK_AUTHTOKEN`, `NGROK_DOMAIN` | Domain defaults to `{APP_NAME}-ngrok.ngrok-free.app` (`deal-truth-ml-ngrok.ngrok-free.app`). Must differ from the API host `deal-truth-ngrok.ngrok-free.app`. Inspector **4041**. |
-
+| File                             | Vars                                                            | Notes                                                                                                                                                                             |
+| -------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`.dev.vars`](.dev.vars.example) | `INTERNAL_API_TOKEN=`                                           | Wrangler secret. **Leave empty locally** so the API needs no Bearer.                                                                                                              |
+| [`.env`](.env.example)           | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ML_PORT=8081` | Cloudflare token only if you are not using `wrangler login`.                                                                                                                      |
+| [`.env`](.env.example)           | `APP_NAME=deal-truth-ml`, `NGROK_AUTHTOKEN`, `NGROK_DOMAIN`     | Domain defaults to `{APP_NAME}-ngrok.ngrok-free.app` (`deal-truth-ml-ngrok.ngrok-free.app`). Must differ from the API host `deal-truth-ngrok.ngrok-free.app`. Inspector **4041**. |
 
 Do **not** put `ML_SERVICE_`* in this repo. Those belong on the API.
 
@@ -108,14 +102,12 @@ Model IDs are already in `wrangler.jsonc`. You do not need to set them unless yo
 
 ### Env in **deal-truth** (`deal-truth/.env`)
 
-
-| Var | Same machine | API cannot see localhost (Docker/remote) |
-| --- | --- | --- |
-| `ML_SERVICE_BASE_URL` | `http://localhost:8081` (API on host) or `http://host.docker.internal:8081` (API in Docker on Mac) | `https://$ML_NGROK_DOMAIN` (`deal-truth-ml-ngrok.ngrok-free.app`) |
-| `ML_NGROK_DOMAIN` | `deal-truth-ml-ngrok.ngrok-free.app` | same; `make up` in this repo writes it into `deal-truth/.env` |
-| `ML_SERVICE_API_KEY` | empty | empty unless `INTERNAL_API_TOKEN` is set |
-| `ML_GENERATION_ENABLED` | `true` | `true` |
-
+| Var                     | Same machine                                                                                       | API cannot see localhost (Docker/remote)                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `ML_SERVICE_BASE_URL`   | `http://localhost:8081` (API on host) or `http://host.docker.internal:8081` (API in Docker on Mac) | `https://$ML_NGROK_DOMAIN` (`deal-truth-ml-ngrok.ngrok-free.app`) |
+| `ML_NGROK_DOMAIN`       | `deal-truth-ml-ngrok.ngrok-free.app`                                                               | same; `make up` in this repo writes it into `deal-truth/.env`     |
+| `ML_SERVICE_API_KEY`    | empty                                                                                              | empty unless `INTERNAL_API_TOKEN` is set                          |
+| `ML_GENERATION_ENABLED` | `true`                                                                                             | `true`                                                            |
 
 Restart **api** and **worker** after changing those (`cd ../deal-truth && make restart` or `make up`).
 
@@ -145,8 +137,6 @@ The API calls these **compat** paths on `:8081`: `POST /classify`, `/emotion`, `
 
 ---
 
-
-
 ## Architecture
 
 ```mermaid
@@ -174,12 +164,7 @@ flowchart TD
     Rerank --> WAI
 ```
 
-
-
-
-
 ## Model routing
-
 
 | Path    | Model                           | Used for                                                     |
 | ------- | ------------------------------- | ------------------------------------------------------------ |
@@ -187,7 +172,6 @@ flowchart TD
 | Quality | `@cf/openai/gpt-oss-120b`       | Stage-2 judge, Ask-the-Call synthesis, high-stakes reasoning |
 | Embed   | `@cf/qwen/qwen3-embedding-0.6b` | 1024-dim embeddings (8,192-token context)                    |
 | Rerank  | `@cf/baai/bge-reranker-base`    | Passage rerank for Ask-the-Call                              |
-
 
 Never ask 120B to rediscover the whole call. Stage 1 proposes candidates. Stage 2 judges only relevant segments. The backend evidence validator still decides what ships.
 
@@ -197,38 +181,38 @@ Free plan: **10,000 neurons/day**. Exhaustion returns `QUOTA_EXCEEDED` instead o
 
 ## Makefile
 
-
-| Target         | What happens                                          |
-| -------------- | ----------------------------------------------------- |
-| `make setup`   | `npm install`, create `.dev.vars` / `.env` if missing |
-| `make login`   | `wrangler login` + `whoami`                           |
-| `make up` | Docker Compose `ml` on **:8081** + **ngrok** inspector **:4041**, wait for health, print public URL |
-| `make down` | `docker compose down` |
-| `make restart` | After code changes: rebuild `ml`, recreate `ml` + `ngrok`, wait for `/health/live` |
-| `make dev`     | Host `wrangler dev` on **:8081** (foreground)         |
-| `make check`   | `GET /health/live`                                    |
-| `make smoke`   | health + sample `POST /classify`                      |
-| `make test`    | Vitest with fake AI (no Cloudflare)                   |
-| `make deploy`  | `wrangler secret put` + `wrangler deploy`             |
-
-
-
+| Target              | What happens                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `make setup`        | `npm install`, create `.dev.vars` / `.env` if missing                                               |
+| `make login`        | `wrangler login` + `whoami`                                                                         |
+| `make up`           | Docker Compose `ml` on **:8081** + **ngrok** inspector **:4041**, wait for health, print public URL |
+| `make down`         | `docker compose down`                                                                               |
+| `make restart`      | After code changes: rebuild `ml`, recreate `ml` + `ngrok`, wait for `/health/live`                  |
+| `make dev`          | Host `wrangler dev` on **:8081** (foreground)                                                       |
+| `make check`        | `GET /health/live`                                                                                  |
+| `make smoke`        | health + sample `POST /classify`                                                                    |
+| `make test`         | Vitest with fake AI (no Cloudflare)                                                                 |
+| `make lint`         | ESLint on `src` and `test`                                                                          |
+| `make format`       | Prettier write                                                                                      |
+| `make format-check` | Prettier check (CI / hooks equivalent)                                                              |
+| `make deploy`       | `wrangler secret put` + `wrangler deploy`                                                           |
 
 ## Tests
 
 ```bash
 make test
 make lint
+make format-check
 make typecheck
 ```
+
+Git hooks (after `npm install`): pre-commit lint+format on staged files, commit-msg Conventional Commits. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Live Workers AI (deployed or local, real models):
 
 ```bash
 RUN_MODEL_TESTS=1 ML_SERVICE_BASE_URL=http://127.0.0.1:8081 npm run test:live
 ```
-
-
 
 ## Deploy (production Worker)
 
@@ -244,8 +228,6 @@ ML_SERVICE_BASE_URL=https://deal-truth-ml.<account>.workers.dev
 ML_SERVICE_API_KEY=<same as INTERNAL_API_TOKEN>
 ```
 
-
-
 ## curl examples
 
 Local Docker/host uses port **8081**. Leave `TOKEN` empty when `INTERNAL_API_TOKEN` is empty (drop the Authorization header).
@@ -254,8 +236,6 @@ Local Docker/host uses port **8081**. Leave `TOKEN` empty when `INTERNAL_API_TOK
 export BASE=http://127.0.0.1:8081
 ```
 
-
-
 ### Health
 
 ```bash
@@ -263,16 +243,12 @@ curl -sS "$BASE/health/live"
 curl -sS "$BASE/health/ready"
 ```
 
-
-
 ### Models and labels
 
 ```bash
 curl -sS "$BASE/v1/models"
 curl -sS "$BASE/v1/sales-labels"
 ```
-
-
 
 ### Classify
 
@@ -287,8 +263,6 @@ curl -sS -X POST "$BASE/v1/classify" \
   }'
 ```
 
-
-
 ### Emotions (three separate axes)
 
 ```bash
@@ -302,8 +276,6 @@ curl -sS -X POST "$BASE/v1/emotions" \
   }'
 ```
 
-
-
 ### Embeddings
 
 ```bash
@@ -314,8 +286,6 @@ curl -sS -X POST "$BASE/v1/embeddings" \
     "normalize": true
   }'
 ```
-
-
 
 ### Rerank
 
@@ -332,8 +302,6 @@ curl -sS -X POST "$BASE/v1/rerank" \
   }'
 ```
 
-
-
 ### Generate (not factually grounded)
 
 ```bash
@@ -347,8 +315,6 @@ curl -sS -X POST "$BASE/v1/generate" \
   }'
 ```
 
-
-
 ### Analyze call (Qwen candidates, GPT-OSS judge)
 
 ```bash
@@ -361,8 +327,6 @@ curl -sS -X POST "$BASE/v1/analyze-call" \
     ]
   }'
 ```
-
-
 
 ### Backend compat aliases (what deal-truth actually calls)
 
@@ -381,21 +345,20 @@ If you set `INTERNAL_API_TOKEN`, add `-H "Authorization: Bearer $TOKEN"` to `/v1
 
 ## Environment variables (Worker)
 
-
-| Name                    | Default                         | Where                         | Purpose                       |
-| ----------------------- | ------------------------------- | ----------------------------- | ----------------------------- |
-| `INTERNAL_API_TOKEN`    | empty                           | `.dev.vars` / wrangler secret | Bearer for `/v1/*` and compat |
-| `ENABLE_GENERATION`     | `true`                          | `wrangler.jsonc`              | `/generate`                   |
-| `MAX_BATCH_SIZE`        | `32`                            | `wrangler.jsonc`              | batch cap                     |
-| `MAX_TEXT_CHARS`        | `8000`                          | `wrangler.jsonc`              | text cap                      |
-| `FAST_MODEL_ID`         | `@cf/qwen/qwen3-30b-a3b-fp8`    | `wrangler.jsonc`              | fast path                     |
-| `QUALITY_MODEL_ID`      | `@cf/openai/gpt-oss-120b`       | `wrangler.jsonc`              | quality path                  |
-| `EMBEDDING_MODEL_ID`    | `@cf/qwen/qwen3-embedding-0.6b` | `wrangler.jsonc`              | embeddings                    |
-| `RERANK_MODEL_ID`       | `@cf/baai/bge-reranker-base`    | `wrangler.jsonc`              | rerank                        |
-| `EMBEDDING_DIMENSION`   | `1024`                          | `wrangler.jsonc`              | reported dim                  |
-| `CLOUDFLARE_API_TOKEN`  | empty                           | `.env` (Docker)               | Wrangler auth in Compose      |
-| `CLOUDFLARE_ACCOUNT_ID` | empty                           | `.env` (Docker)               | Account for the token         |
-
+| Name                    | Default                         | Where                         | Purpose                             |
+| ----------------------- | ------------------------------- | ----------------------------- | ----------------------------------- |
+| `INTERNAL_API_TOKEN`    | empty                           | `.dev.vars` / wrangler secret | Bearer for `/v1/*` and compat       |
+| `ENABLE_GENERATION`     | `true`                          | `wrangler.jsonc`              | `/generate`                         |
+| `MAX_BATCH_SIZE`        | `32`                            | `wrangler.jsonc`              | batch cap                           |
+| `MAX_TEXT_CHARS`        | `8000`                          | `wrangler.jsonc`              | text cap                            |
+| `LOG_LEVEL`             | `info`                          | `wrangler.jsonc`              | `debug` / `info` / `warn` / `error` |
+| `FAST_MODEL_ID`         | `@cf/qwen/qwen3-30b-a3b-fp8`    | `wrangler.jsonc`              | fast path                           |
+| `QUALITY_MODEL_ID`      | `@cf/openai/gpt-oss-120b`       | `wrangler.jsonc`              | quality path                        |
+| `EMBEDDING_MODEL_ID`    | `@cf/qwen/qwen3-embedding-0.6b` | `wrangler.jsonc`              | embeddings                          |
+| `RERANK_MODEL_ID`       | `@cf/baai/bge-reranker-base`    | `wrangler.jsonc`              | rerank                              |
+| `EMBEDDING_DIMENSION`   | `1024`                          | `wrangler.jsonc`              | reported dim                        |
+| `CLOUDFLARE_API_TOKEN`  | empty                           | `.env` (Docker)               | Wrangler auth in Compose            |
+| `CLOUDFLARE_ACCOUNT_ID` | empty                           | `.env` (Docker)               | Account for the token               |
 
 Do not commit `.dev.vars` or `.env`. Transcript text is never logged.
 
@@ -404,8 +367,6 @@ Do not commit `.dev.vars` or `.env`. Transcript text is never logged.
 - Logs: request ID, counts, model, duration, named error — never transcript text.
 - CORS is not permissive; the backend calls this Worker, not the browser.
 - Constant-time token comparison when a token is set.
-
-
 
 ## How the API behaves when this Worker is down
 
@@ -425,8 +386,6 @@ The API (`deal-truth-api`) treats an outage here as **infrastructure, never a de
 - Embeddings are **1024-dim** and the API matches with pgvector `vector(1024)` (migration `0002_embedding_1024`) — the earlier `VECTOR(384)` mismatch is resolved.
 - Compat classify/emotion chunk sequentially **inside one HTTP request**; the API client allows a 300s read timeout for large batches.
 - No models on the Oracle VM or in this Docker image.
-
-
 
 ## License
 

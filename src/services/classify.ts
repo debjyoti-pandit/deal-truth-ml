@@ -4,6 +4,7 @@ import type { ModelRouter } from '../ai/router';
 import { classifyResponseSchema } from '../ai/schemas';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 import { defaultCandidateLabels, salesLabelById } from '../taxonomies/sales-labels';
 import { assertBatch } from '../api/validation';
 
@@ -47,10 +48,16 @@ export async function classifyItems(
   const { items, candidate_labels, threshold, top_k } = parsed.data;
   assertBatch(items, config);
   const labels = candidate_labels?.length ? candidate_labels : defaultCandidateLabels();
+  logger.info('classify.start', {
+    item_count: items.length,
+    label_count: labels.length,
+    chunk_size: CLASSIFY_ITEM_CHUNK,
+  });
   const byId = new Map<string, { id: string; labels: { id: string; score: number }[] }>();
   let model = router.modelId('fast');
   for (let offset = 0; offset < items.length; offset += CLASSIFY_ITEM_CHUNK) {
     const chunk = items.slice(offset, offset + CLASSIFY_ITEM_CHUNK);
+    logger.debug('classify.chunk', { offset, size: chunk.length });
     const { data, model: used } = await router.json(
       'fast',
       classifyPrompt(chunk, labels),

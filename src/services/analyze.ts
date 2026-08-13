@@ -4,6 +4,7 @@ import type { ModelRouter } from '../ai/router';
 import { analyzeCallSchema, candidatesSchema } from '../ai/schemas';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 import { assertBatch } from '../api/validation';
 
 const segmentSchema = z.object({
@@ -36,6 +37,8 @@ export async function analyzeCall(
   }
   assertBatch(parsed.data.segments, config);
 
+  logger.info('analyze.start', { segment_count: parsed.data.segments.length });
+
   const candidates = await router.json(
     'fast',
     candidatesPrompt(parsed.data.segments),
@@ -53,6 +56,11 @@ export async function analyzeCall(
   }
   const relevant = parsed.data.segments.filter((segment) => neededIds.has(segment.id));
   const context = relevant.length > 0 ? relevant : parsed.data.segments.slice(0, 20);
+
+  logger.info('analyze.candidates', {
+    model: candidates.model,
+    context_segments: context.length,
+  });
 
   const judged = await router.json(
     'quality',

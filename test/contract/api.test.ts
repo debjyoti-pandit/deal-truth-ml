@@ -36,7 +36,10 @@ describe('v1 contract', () => {
       top_k: 10,
     });
     expect(status).toBe(200);
-    const items = json.items as { id: string; labels: { id: string; passed_threshold: boolean }[] }[];
+    const items = json.items as {
+      id: string;
+      labels: { id: string; passed_threshold: boolean }[];
+    }[];
     expect(items[0]?.id).toBe('segment-1');
     expect(items[0]?.labels.every((label) => label.passed_threshold)).toBe(true);
     expect(ai.calls[0]?.model).toContain('qwen3-30b');
@@ -186,14 +189,19 @@ describe('backend compat aliases', () => {
   });
 
   it('POST /embed returns embedding vectors', async () => {
-    const { status, json } = await post('/embed', { texts: ['Customer requires security approval.'] });
+    const { status, json } = await post('/embed', {
+      texts: ['Customer requires security approval.'],
+    });
     expect(status).toBe(200);
     const results = json.results as { embedding: number[] }[];
     expect(results[0]?.embedding).toHaveLength(1024);
   });
 
   it('POST /generate returns text', async () => {
-    const { status, json } = await post('/generate', { prompt: 'Summarize the call.', max_tokens: 40 });
+    const { status, json } = await post('/generate', {
+      prompt: 'Summarize the call.',
+      max_tokens: 40,
+    });
     expect(status).toBe(200);
     expect(typeof json.text).toBe('string');
   });

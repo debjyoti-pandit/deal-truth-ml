@@ -15,7 +15,9 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:live": "RUN_MODEL_TESTS=1 vitest run test/live"
+    "test:live": "RUN_MODEL_TESTS=1 vitest run test/live",
+    "prepare": "husky",
+    "commitlint": "commitlint --edit"
   },
   "engines": {
     "node": ">=20"
@@ -26,13 +28,30 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260811.1",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@eslint/js": "^9.15.0",
     "@types/node": "^22.13.10",
     "eslint": "^9.15.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.1",
     "vitest": "^3.0.9",
     "wrangler": "^4.14.1"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "test/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,jsonc}": [
+      "prettier --write"
+    ]
   }
 }

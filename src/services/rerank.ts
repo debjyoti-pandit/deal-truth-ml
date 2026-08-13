@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { ModelRouter } from '../ai/router';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 import { assertBatch } from '../api/validation';
 
 const requestSchema = z.object({
@@ -26,6 +27,10 @@ export async function rerankPassages(
   if (parsed.data.query.length > config.maxTextChars) {
     throw new AppError('TEXT_TOO_LONG', 'Query exceeds MAX_TEXT_CHARS.');
   }
+  logger.info('rerank.start', {
+    passage_count: parsed.data.passages.length,
+    query_chars: parsed.data.query.length,
+  });
   const ranked = await router.rerank(
     parsed.data.query,
     parsed.data.passages.map((passage) => passage.text),

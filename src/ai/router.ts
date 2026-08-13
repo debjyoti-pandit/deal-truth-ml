@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 import type { ChatMessage } from './client';
 import { ModelClient } from './client';
 import { parseWithSchema } from './json';
@@ -49,17 +50,23 @@ export class ModelRouter {
       if (!(error instanceof AppError) || error.code !== 'SCHEMA_INVALID') {
         throw error;
       }
+      logger.warn('ai.json.repair', { model, error_code: error.code });
       const invalidText = typeof raw === 'string' ? raw : JSON.stringify(raw ?? error.message);
       const repaired = await this.client.generateJson(
         model,
         [
           ...messages,
           { role: 'assistant', content: invalidText.slice(0, 2000) },
-          { role: 'user', content: repairPrompt(invalidText, 'strict JSON object matching the requested schema') },
+          {
+            role: 'user',
+            content: repairPrompt(invalidText, 'strict JSON object matching the requested schema'),
+          },
         ],
         { maxTokens: options.maxTokens, temperature: 0 },
       );
-      return { data: parseWithSchema(schema, repaired), model, repaired: true };
+      const data = parseWithSchema(schema, repaired);
+      logger.info('ai.json.repaired', { model });
+      return { data, model, repaired: true };
     }
   }
 

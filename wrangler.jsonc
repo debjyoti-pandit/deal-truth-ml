@@ -22,7 +22,5 @@
   "observability": {
     "enabled": true,
   },
-  "rules": [
-    { "type": "Text", "globs": ["**/*.md"] },
-  ],
+  "rules": [{ "type": "Text", "globs": ["**/*.md"] }],
 }

@@ -7,6 +7,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
+ENV HUSKY=0
 RUN npm ci
 
 COPY wrangler.jsonc tsconfig.json ./

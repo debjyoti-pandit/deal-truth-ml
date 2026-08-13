@@ -22,10 +22,10 @@ npx wrangler deploy
 
 You must add:
 
-| Item | Where |
-|---|---|
-| `INTERNAL_API_TOKEN` | `wrangler secret put` (not Git) |
-| Cloudflare account | already logged in, or `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` for CI |
+| Item                 | Where                                                                         |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `INTERNAL_API_TOKEN` | `wrangler secret put` (not Git)                                               |
+| Cloudflare account   | already logged in, or `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` for CI |
 
 Already in `wrangler.jsonc` (no fill): `ENABLE_GENERATION`, model IDs, batch limits, embedding dimension.
 

@@ -2,12 +2,12 @@
 
 All inference is Cloudflare Workers AI. Model IDs are wrangler vars and can be overridden.
 
-| Role | ID | Notes |
-|---|---|---|
-| Fast | `@cf/qwen/qwen3-30b-a3b-fp8` | MoE, ~3B active params per pass. Segment classify, emotions, stage-1 candidates, most polish. |
-| Quality | `@cf/openai/gpt-oss-120b` | 120B class, 128K context, structured responses. Judge, Ask synthesis, high-stakes reasoning. |
-| Embed | `@cf/qwen/qwen3-embedding-0.6b` | 1024-dim, 8,192-token context. Replaces BGE-small 384-dim. |
-| Rerank | `@cf/baai/bge-reranker-base` | Query + passages → relevance scores. |
+| Role    | ID                              | Notes                                                                                         |
+| ------- | ------------------------------- | --------------------------------------------------------------------------------------------- |
+| Fast    | `@cf/qwen/qwen3-30b-a3b-fp8`    | MoE, ~3B active params per pass. Segment classify, emotions, stage-1 candidates, most polish. |
+| Quality | `@cf/openai/gpt-oss-120b`       | 120B class, 128K context, structured responses. Judge, Ask synthesis, high-stakes reasoning.  |
+| Embed   | `@cf/qwen/qwen3-embedding-0.6b` | 1024-dim, 8,192-token context. Replaces BGE-small 384-dim.                                    |
+| Rerank  | `@cf/baai/bge-reranker-base`    | Query + passages → relevance scores.                                                          |
 
 Docs:
 

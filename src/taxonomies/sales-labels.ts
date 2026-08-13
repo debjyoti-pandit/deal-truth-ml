@@ -12,14 +12,16 @@ export const SALES_LABELS: SalesLabel[] = [
   {
     id: 'pain_point',
     display_name: 'Pain point',
-    hypothesis: 'The speaker describes a business problem, inefficiency, or pain the product could address.',
+    hypothesis:
+      'The speaker describes a business problem, inefficiency, or pain the product could address.',
     category: 'signal',
     threshold: 0.55,
   },
   {
     id: 'positive_buying_signal',
     display_name: 'Positive buying signal',
-    hypothesis: 'The speaker expresses commercial interest, willingness to proceed, or desire to buy.',
+    hypothesis:
+      'The speaker expresses commercial interest, willingness to proceed, or desire to buy.',
     category: 'signal',
     threshold: 0.6,
   },
@@ -33,35 +35,40 @@ export const SALES_LABELS: SalesLabel[] = [
   {
     id: 'pricing_objection',
     display_name: 'Pricing objection',
-    hypothesis: 'The speaker is objecting to or expressing concern about price, cost, budget, or commercial terms.',
+    hypothesis:
+      'The speaker is objecting to or expressing concern about price, cost, budget, or commercial terms.',
     category: 'objection',
     threshold: 0.72,
   },
   {
     id: 'security_blocker',
     display_name: 'Security blocker',
-    hypothesis: 'The speaker says security, compliance, legal, or vendor-review approval blocks progress.',
+    hypothesis:
+      'The speaker says security, compliance, legal, or vendor-review approval blocks progress.',
     category: 'risk',
     threshold: 0.7,
   },
   {
     id: 'technical_blocker',
     display_name: 'Technical blocker',
-    hypothesis: 'The speaker says a technical limitation, integration gap, or architecture issue blocks progress.',
+    hypothesis:
+      'The speaker says a technical limitation, integration gap, or architecture issue blocks progress.',
     category: 'risk',
     threshold: 0.7,
   },
   {
     id: 'budget_blocker',
     display_name: 'Budget blocker',
-    hypothesis: 'The speaker says budget is frozen, unavailable, unapproved, or insufficient to buy.',
+    hypothesis:
+      'The speaker says budget is frozen, unavailable, unapproved, or insufficient to buy.',
     category: 'risk',
     threshold: 0.7,
   },
   {
     id: 'timing_blocker',
     display_name: 'Timing blocker',
-    hypothesis: 'The speaker says timing, quarter close, or calendar constraints block a purchase now.',
+    hypothesis:
+      'The speaker says timing, quarter close, or calendar constraints block a purchase now.',
     category: 'risk',
     threshold: 0.65,
   },
@@ -152,7 +159,8 @@ export const SALES_LABELS: SalesLabel[] = [
   {
     id: 'customer_praise',
     display_name: 'Customer praise',
-    hypothesis: 'The customer praises the product, demo, or team without necessarily committing to buy.',
+    hypothesis:
+      'The customer praises the product, demo, or team without necessarily committing to buy.',
     category: 'signal',
     threshold: 0.55,
   },

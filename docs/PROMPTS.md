@@ -37,12 +37,12 @@ Input: JSON candidates + only the referenced segments (fallback: first 20). Outp
 
 ## Generation tasks
 
-| Task | Instruction | Model |
-|---|---|---|
-| `summary_fallback` | Concise summary. No invented facts. | fast |
-| `email_polish` | Polish wording. Preserve meaning. No new commitments. | fast |
-| `battlecard_polish` | Polish battlecard. No new facts. | fast |
-| `qa_synthesis` | Answer from retrieved passages. Cite provided segment IDs. | quality |
+| Task                | Instruction                                                | Model   |
+| ------------------- | ---------------------------------------------------------- | ------- |
+| `summary_fallback`  | Concise summary. No invented facts.                        | fast    |
+| `email_polish`      | Polish wording. Preserve meaning. No new commitments.      | fast    |
+| `battlecard_polish` | Polish battlecard. No new facts.                           | fast    |
+| `qa_synthesis`      | Answer from retrieved passages. Cite provided segment IDs. | quality |
 
 ## Repair
 

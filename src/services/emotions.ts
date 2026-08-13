@@ -4,6 +4,7 @@ import type { ModelRouter } from '../ai/router';
 import { emotionResponseSchema, type EmotionResponse } from '../ai/schemas';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
+import { logger } from '../core/logging';
 import { BUYING_INTENT, DEAL_SIGNALS, SALES_EMOTIONS } from '../taxonomies/emotions';
 import { assertBatch } from '../api/validation';
 
@@ -28,11 +29,17 @@ export async function analyzeEmotions(
   const byId = new Map<string, EmotionResponse['items'][number]>();
   let model = router.modelId('fast');
   const sourceItems = parsed.data.items;
+  logger.info('emotion.start', { item_count: sourceItems.length, chunk_size: EMOTION_ITEM_CHUNK });
   for (let offset = 0; offset < sourceItems.length; offset += EMOTION_ITEM_CHUNK) {
     const chunk = sourceItems.slice(offset, offset + EMOTION_ITEM_CHUNK);
-    const { data, model: used } = await router.json('fast', emotionsPrompt(chunk), emotionResponseSchema, {
-      maxTokens: 2048,
-    });
+    const { data, model: used } = await router.json(
+      'fast',
+      emotionsPrompt(chunk),
+      emotionResponseSchema,
+      {
+        maxTokens: 2048,
+      },
+    );
     model = used;
     data.items.forEach((row, index) => {
       const normalized = {
@@ -53,7 +60,12 @@ export async function analyzeEmotions(
     const result = byId.get(item.id);
     return {
       id: item.id,
-      emotion: filterScores(result?.emotion ?? [], SALES_EMOTIONS, parsed.data.threshold, parsed.data.top_k),
+      emotion: filterScores(
+        result?.emotion ?? [],
+        SALES_EMOTIONS,
+        parsed.data.threshold,
+        parsed.data.top_k,
+      ),
       buying_intent: filterScores(
         result?.buying_intent ?? [],
         BUYING_INTENT,

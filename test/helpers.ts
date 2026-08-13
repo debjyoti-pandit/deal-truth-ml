@@ -33,7 +33,9 @@ export class FakeAi {
       throw new Error('Workers AI quota exceeded: 10000 neurons');
     }
     if (model.includes('embedding')) {
-      const texts = Array.isArray(inputs.text) ? (inputs.text as string[]) : [String(inputs.text ?? '')];
+      const texts = Array.isArray(inputs.text)
+        ? (inputs.text as string[])
+        : [String(inputs.text ?? '')];
       return {
         data: texts.map(() => {
           const vector = Array.from({ length: 1024 }, (_, i) => (i === 0 ? 1 : 0.01));
@@ -44,7 +46,10 @@ export class FakeAi {
     if (model.includes('reranker')) {
       const contexts = Array.isArray(inputs.contexts) ? inputs.contexts : [];
       return {
-        response: contexts.map((_, index) => ({ id: index, score: Math.max(0, 0.95 - index * 0.08) })),
+        response: contexts.map((_, index) => ({
+          id: index,
+          score: Math.max(0, 0.95 - index * 0.08),
+        })),
       };
     }
     const prompt = allMessageText(inputs);
@@ -58,14 +63,17 @@ export class FakeAi {
   private responseFor(prompt: string): string {
     if (prompt.includes('Score each text')) {
       const ids = extractIds(prompt);
-      const labelIds = [...prompt.matchAll(/^- ([a-z0-9_]+):/gm)].map((match) => match[1] ?? 'label');
+      const labelIds = [...prompt.matchAll(/^- ([a-z0-9_]+):/gm)].map(
+        (match) => match[1] ?? 'label',
+      );
       const labels = (labelIds.length > 0 ? labelIds : SALES_LABELS.map((l) => l.id)).slice(0, 4);
       return JSON.stringify({
         items: ids.map((id) => ({
           id,
           labels: labels.map((label, index) => ({
             id: label,
-            score: label.includes('budget') || label.includes('pricing') || index === 0 ? 0.91 : 0.12,
+            score:
+              label.includes('budget') || label.includes('pricing') || index === 0 ? 0.91 : 0.12,
           })),
         })),
       });
@@ -89,13 +97,17 @@ export class FakeAi {
     }
     if (prompt.includes('Stage 1')) {
       return JSON.stringify({
-        pains: [{ type: 'pain', summary: 'Manual routing cost', segment_ids: ['1'], confidence: 0.8 }],
+        pains: [
+          { type: 'pain', summary: 'Manual routing cost', segment_ids: ['1'], confidence: 0.8 },
+        ],
         blockers: [
           { type: 'blocker', summary: 'Budget frozen', segment_ids: ['2'], confidence: 0.9 },
         ],
         commitments: [],
         competitors: [],
-        signals: [{ type: 'praise', summary: 'Likes product', segment_ids: ['2'], confidence: 0.7 }],
+        signals: [
+          { type: 'praise', summary: 'Likes product', segment_ids: ['2'], confidence: 0.7 },
+        ],
         objections: [],
         reality_checks: [],
       });
@@ -103,11 +115,22 @@ export class FakeAi {
     if (prompt.includes('Stage 2') || prompt.includes('high-quality judge')) {
       return JSON.stringify({
         customer_truth: [
-          { summary: 'Customer likes the product but budget is frozen', segment_ids: ['2'], supported: true },
+          {
+            summary: 'Customer likes the product but budget is frozen',
+            segment_ids: ['2'],
+            supported: true,
+          },
         ],
         objections: [],
         commitments: [],
-        risks: [{ summary: 'Budget blocker until next year', segment_ids: ['2'], severity: 'critical', supported: true }],
+        risks: [
+          {
+            summary: 'Budget blocker until next year',
+            segment_ids: ['2'],
+            severity: 'critical',
+            supported: true,
+          },
+        ],
         competitors: [],
         buying_signals: [],
         reality_checks: [],

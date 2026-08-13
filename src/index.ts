@@ -3,7 +3,14 @@ import { cors } from 'hono/cors';
 import { loadConfig } from './core/config';
 import { extractBearer, timingSafeEqual } from './core/auth';
 import { AppError, errorEnvelope } from './core/errors';
-import { logRequest, loggableErrorDetail } from './core/logging';
+import {
+  configureLogger,
+  logRequest,
+  loggableErrorDetail,
+  logger,
+  redact,
+  runWithLogContext,
+} from './core/logging';
 import { countChars, newRequestId } from './core/request';
 import { ModelClient } from './ai/client';
 import { ModelRouter } from './ai/router';
@@ -31,6 +38,7 @@ function isProtected(path: string): boolean {
 
 export function createApp(env: Env): Hono<AppEnv> {
   const config = loadConfig(env);
+  configureLogger(config.logLevel);
   const router = new ModelRouter(new ModelClient(env.AI), config);
   const app = new Hono<AppEnv>();
 
@@ -39,7 +47,7 @@ export function createApp(env: Env): Hono<AppEnv> {
     c.set('requestId', requestId);
     c.set('startMs', Date.now());
     c.header('X-Request-ID', requestId);
-    await next();
+    await runWithLogContext(requestId, () => next());
   });
 
   // Backend-to-worker only. Do not reflect arbitrary Origin.
@@ -58,6 +66,12 @@ export function createApp(env: Env): Hono<AppEnv> {
       error instanceof AppError
         ? error
         : new AppError('INTERNAL_ERROR', 'An unexpected error occurred.');
+    if (!(error instanceof AppError)) {
+      logger.error('http.unhandled', {
+        name: error instanceof Error ? error.name : 'unknown',
+        message: error instanceof Error ? redact(error.message) : 'non-error',
+      });
+    }
     logRequest({
       request_id: requestId,
       method: c.req.method,
@@ -130,12 +144,17 @@ export function createApp(env: Env): Hono<AppEnv> {
   app.get('/v1/sales-labels', (c) => c.json({ labels: SALES_LABELS }));
 
   const mountReference = (prefix: string) => {
-    app.get(`${prefix}/reference`, (c) => c.json({ docs: listReferenceDocs(`${prefix}/reference`) }));
+    app.get(`${prefix}/reference`, (c) =>
+      c.json({ docs: listReferenceDocs(`${prefix}/reference`) }),
+    );
     app.get(`${prefix}/reference/:name`, (c) => {
       const doc = getReferenceDoc(c.req.param('name'));
       if (!doc) {
         return c.json(
-          errorEnvelope(new AppError('INVALID_REQUEST', 'Unknown reference document.'), c.get('requestId')),
+          errorEnvelope(
+            new AppError('INVALID_REQUEST', 'Unknown reference document.'),
+            c.get('requestId'),
+          ),
           404,
         );
       }
@@ -170,7 +189,7 @@ export function createApp(env: Env): Hono<AppEnv> {
     const body = await c.req.json();
     const result = await rerankPassages(router, config, body);
     const passages = Array.isArray((body as { passages?: unknown }).passages)
-      ? ((body as { passages: { text: string }[] }).passages)
+      ? (body as { passages: { text: string }[] }).passages
       : [];
     logSuccess(c, result.items.length, countChars(passages.map((p) => p.text)), result.model);
     return c.json({ items: result.items, model: result.model, request_id: c.get('requestId') });
@@ -273,7 +292,10 @@ export function createApp(env: Env): Hono<AppEnv> {
 }
 
 function logSuccess(
-  c: { get: (k: 'requestId' | 'startMs') => string | number; req: { method: string; path: string } },
+  c: {
+    get: (k: 'requestId' | 'startMs') => string | number;
+    req: { method: string; path: string };
+  },
   itemCount: number,
   charCount: number,
   model: string,
@@ -307,7 +329,11 @@ function bodyItems(body: unknown): string[] {
 }
 
 function asStringArray(value: unknown, field = 'texts'): string[] {
-  if (!Array.isArray(value) || value.length === 0 || !value.every((item) => typeof item === 'string')) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    !value.every((item) => typeof item === 'string')
+  ) {
     throw new AppError('INVALID_REQUEST', `${field} must be a non-empty string array.`);
   }
   return value;
@@ -324,7 +350,12 @@ function asOptionalStringArray(value: unknown, field = 'labels'): string[] {
 }
 
 function slugify(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'label';
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '') || 'label'
+  );
 }
 
 export default {

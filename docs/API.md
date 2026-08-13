@@ -105,12 +105,12 @@ Each insight carries `segment_ids` only.
 
 ## Compat aliases (backend `DealTruthMLClient`)
 
-| Route | Request | Response |
-|---|---|---|
+| Route            | Request                                                            | Response                                      |
+| ---------------- | ------------------------------------------------------------------ | --------------------------------------------- |
 | `POST /classify` | `{ texts, labels? }` (omit `labels` to use the 24-label catalogue) | `{ results: [{ labels: [{label, score}] }] }` |
-| `POST /emotion` | `{ texts }` | `{ results: [{ labels: [{label, score}] }] }` |
-| `POST /embed` | `{ texts }` | `{ results: [{ embedding: number[] }] }` |
-| `POST /generate` | `{ prompt, max_tokens? }` | `{ text }` |
+| `POST /emotion`  | `{ texts }`                                                        | `{ results: [{ labels: [{label, score}] }] }` |
+| `POST /embed`    | `{ texts }`                                                        | `{ results: [{ embedding: number[] }] }`      |
+| `POST /generate` | `{ prompt, max_tokens? }`                                          | `{ text }`                                    |
 
 The parser in `deal-truth/app/ml/__init__.py` accepts `results` / `data` / `items`.
 
