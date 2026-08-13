@@ -17,6 +17,21 @@ describe('auth and health', () => {
     expect(body.overall).toBe('ready');
   });
 
+  it('serves swagger ui and openapi json without auth', async () => {
+    const app = createApp(testEnv(new FakeAi(), { INTERNAL_API_TOKEN: 'secret' }));
+    const docs = await app.request('http://ml/docs');
+    const spec = await app.request('http://ml/openapi.json');
+    expect(docs.status).toBe(200);
+    expect(docs.headers.get('Content-Type')).toContain('text/html');
+    expect(await docs.text()).toContain('swagger-ui');
+    expect(spec.status).toBe(200);
+    const body = await jsonOf(spec);
+    expect(body.openapi).toBe('3.1.0');
+    const paths = body.paths as Record<string, unknown>;
+    expect(paths['/classify']).toBeTruthy();
+    expect(paths['/v1/classify']).toBeTruthy();
+  });
+
   it('rejects protected routes without a token when configured', async () => {
     const app = createApp(testEnv(new FakeAi(), { INTERNAL_API_TOKEN: 'secret' }));
     const response = await app.request('http://ml/v1/models');

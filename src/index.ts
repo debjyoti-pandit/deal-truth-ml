@@ -15,6 +15,7 @@ import { analyzeEmotions } from './services/emotions';
 import { generateText } from './services/generate';
 import { rerankPassages } from './services/rerank';
 import { getReferenceDoc, listReferenceDocs } from './reference';
+import { openApiSpec, swaggerUiHtml } from './openapi';
 import type { AppVariables, Env } from './env';
 
 type AppEnv = { Bindings: Env; Variables: AppVariables };
@@ -88,6 +89,10 @@ export function createApp(env: Env): Hono<AppEnv> {
   });
 
   app.get('/health/live', (c) => c.json({ status: 'ok' }));
+
+  app.get('/openapi.json', (c) => c.json(openApiSpec));
+
+  app.get('/docs', (c) => c.html(swaggerUiHtml('/openapi.json')));
 
   app.get('/health/ready', (c) => {
     const ready = Boolean(env.AI);

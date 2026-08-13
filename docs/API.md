@@ -28,6 +28,10 @@ Stack traces are never returned.
 
 ## Endpoints
 
+### `GET /docs`
+
+Swagger UI (same role as Deal Truth API `/docs`). Spec: `GET /openapi.json`.
+
 ### `GET /health/live`
 
 Process/worker is up.

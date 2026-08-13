@@ -6,7 +6,7 @@ Hosted inference router for **Deal Truth**. This repo is a **Cloudflare Worker**
 
 Full product map: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md). Local + production env: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-Running Worker docs (after `make up`): [catalog](http://localhost:8081/v1/reference) · [API.md](http://localhost:8081/v1/reference/API.md)
+Running Worker: [Swagger](http://localhost:8081/docs) · [catalog](http://localhost:8081/v1/reference) · [API.md](http://localhost:8081/v1/reference/API.md)
 
 ---
 
@@ -42,9 +42,12 @@ Then start the API stack in `/Users/debjyoti_pandit/Work/github/deal-truth` with
 
 ```bash
 curl http://localhost:8081/health/live
+curl http://localhost:8081/openapi.json
 curl http://localhost:8081/v1/reference
 ```
 
+Swagger UI: http://localhost:8081/docs  
+OpenAPI JSON: http://localhost:8081/openapi.json  
 Docs catalog: http://localhost:8081/v1/reference  
 API (from this machine): http://localhost:8081/v1/reference/API.md  
 Alias matching the Deal Truth API: http://localhost:8081/api/v1/reference
@@ -53,6 +56,8 @@ Public host after `make up`: `https://deal-truth-ml-ngrok.ngrok-free.app`.
 
 | What | Local | Public |
 |---|---|---|
+| Swagger UI | http://localhost:8081/docs | https://deal-truth-ml-ngrok.ngrok-free.app/docs |
+| OpenAPI JSON | http://localhost:8081/openapi.json | https://deal-truth-ml-ngrok.ngrok-free.app/openapi.json |
 | Doc catalog (JSON) | http://localhost:8081/v1/reference | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference |
 | Index | http://localhost:8081/v1/reference/README.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/README.md |
 | HTTP API | http://localhost:8081/v1/reference/API.md | https://deal-truth-ml-ngrok.ngrok-free.app/v1/reference/API.md |
