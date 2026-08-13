@@ -1,0 +1,30 @@
+services:
+  ml:
+    build: .
+    container_name: deal-truth-ml
+    command: npx wrangler dev --ip 0.0.0.0 --port 8081
+    ports:
+      - "${ML_PORT:-8081}:8081"
+    env_file:
+      - .env
+    environment:
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      WRANGLER_SEND_METRICS: "false"
+    volumes:
+      - .:/app
+      - ml_node_modules:/app/node_modules
+      # Host wrangler OAuth (macOS: ~/Library/Preferences/.wrangler). Override with WRANGLER_CONFIG_DIR.
+      - ${WRANGLER_CONFIG_DIR:-${HOME}/.wrangler}:/root/.wrangler
+      - ${WRANGLER_CONFIG_DIR:-${HOME}/.wrangler}:/root/.config/.wrangler
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+
+volumes:
+  ml_node_modules:

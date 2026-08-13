@@ -1,0 +1,8 @@
+node_modules
+.wrangler
+dist
+coverage
+*.md
+open_gong_hackathon_chat_export.md
+uv.lock
+package-lock.json

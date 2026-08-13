@@ -1,0 +1,38 @@
+{
+  "name": "deal-truth-ml",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deal Truth ML: Cloudflare Worker model-routing API over Workers AI",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "start": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "lint:fix": "eslint src test --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:live": "RUN_MODEL_TESTS=1 vitest run test/live"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "hono": "^4.9.8",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260811.1",
+    "@eslint/js": "^9.15.0",
+    "@types/node": "^22.13.10",
+    "eslint": "^9.15.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1",
+    "vitest": "^3.0.9",
+    "wrangler": "^4.14.1"
+  }
+}
