@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { extractBearer, timingSafeEqual } from '../../src/core/auth';
 import { AppError } from '../../src/core/errors';
 import { extractJsonText, parseJsonObject } from '../../src/ai/json';
-import { l2Normalize } from '../../src/ai/client';
+import { extractGeneratedText, l2Normalize } from '../../src/ai/client';
 import { SALES_LABELS } from '../../src/taxonomies/sales-labels';
 import { BUYING_INTENT, DEAL_SIGNALS, SALES_EMOTIONS } from '../../src/taxonomies/emotions';
 import { loadConfig } from '../../src/core/config';
@@ -52,6 +52,21 @@ describe('l2Normalize', () => {
     const out = l2Normalize([3, 4]);
     expect(out[0]).toBeCloseTo(0.6);
     expect(out[1]).toBeCloseTo(0.8);
+  });
+});
+
+describe('extractGeneratedText', () => {
+  it('prefers response over thinking', () => {
+    expect(
+      extractGeneratedText({
+        thinking: 'internal chain of thought {not json}',
+        response: '{"ok":true}',
+      }),
+    ).toBe('{"ok":true}');
+  });
+
+  it('throws when the model returns an empty payload', () => {
+    expect(() => extractGeneratedText({ thinking: '   ', response: '' })).toThrow(/no text/);
   });
 });
 

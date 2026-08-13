@@ -9,6 +9,7 @@ export interface RequestLog {
   duration_ms?: number;
   success?: boolean;
   error_code?: string;
+  error_detail?: string;
 }
 
 function sanitize(entry: RequestLog): RequestLog {

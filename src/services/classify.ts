@@ -44,7 +44,7 @@ export async function classifyItems(
   assertBatch(items, config);
   const labels = candidate_labels?.length ? candidate_labels : defaultCandidateLabels();
   const { data, model } = await router.json('fast', classifyPrompt(items, labels), classifyResponseSchema, {
-    maxTokens: 1600,
+    maxTokens: 4096,
   });
   const byId = new Map(data.items.map((item) => [item.id, item]));
   return {

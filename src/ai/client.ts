@@ -10,47 +10,78 @@ export interface AiBinding {
   run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
 }
 
+const SKIP_TEXT_KEYS = new Set([
+  'thinking',
+  'reasoning',
+  'reasoning_content',
+  'logprobs',
+  'usage',
+  'prompt_logprobs',
+]);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function collectText(value: unknown, acc: string[]): void {
+function collectFromKeys(value: unknown, acc: string[], keys: string[]): void {
   if (typeof value === 'string') {
-    acc.push(value);
+    if (value.trim()) {
+      acc.push(value);
+    }
     return;
   }
   if (Array.isArray(value)) {
     for (const item of value) {
-      collectText(item, acc);
+      collectFromKeys(item, acc, keys);
     }
     return;
   }
   if (!isRecord(value)) {
     return;
   }
-  if (typeof value.text === 'string') {
-    acc.push(value.text);
-  }
-  if (typeof value.output_text === 'string') {
-    acc.push(value.output_text);
-  }
-  if (typeof value.response === 'string') {
-    acc.push(value.response);
+  for (const key of keys) {
+    if (typeof value[key] === 'string' && (value[key] as string).trim()) {
+      acc.push(value[key] as string);
+    }
   }
   if (value.content !== undefined) {
-    collectText(value.content, acc);
+    collectFromKeys(value.content, acc, keys);
   }
   if (value.message !== undefined) {
-    collectText(value.message, acc);
-  }
-  if (value.output !== undefined) {
-    collectText(value.output, acc);
+    collectFromKeys(value.message, acc, keys);
   }
   if (value.choices !== undefined) {
-    collectText(value.choices, acc);
+    collectFromKeys(value.choices, acc, keys);
+  }
+  if (value.output !== undefined) {
+    collectFromKeys(value.output, acc, keys);
   }
   if (value.result !== undefined) {
-    collectText(value.result, acc);
+    collectFromKeys(value.result, acc, keys);
+  }
+}
+
+function collectFallback(value: unknown, acc: string[]): void {
+  if (typeof value === 'string') {
+    if (value.trim()) {
+      acc.push(value);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectFallback(item, acc);
+    }
+    return;
+  }
+  if (!isRecord(value)) {
+    return;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (SKIP_TEXT_KEYS.has(key)) {
+      continue;
+    }
+    collectFallback(nested, acc);
   }
 }
 
@@ -58,13 +89,28 @@ export function extractGeneratedText(payload: unknown): string {
   if (typeof payload === 'string') {
     return payload;
   }
-  const parts: string[] = [];
-  collectText(payload, parts);
-  const joined = parts.join('\n').trim();
+  const preferred: string[] = [];
+  collectFromKeys(payload, preferred, ['output_text', 'response', 'text']);
+  const joined = preferred.join('\n').trim();
   if (joined) {
     return joined;
   }
+  const fallback: string[] = [];
+  collectFallback(payload, fallback);
+  const rest = fallback.join('\n').trim();
+  if (rest) {
+    return rest;
+  }
   throw new AppError('UPSTREAM_AI_ERROR', 'Upstream model returned no text.');
+}
+
+function sanitizeUpstreamMessage(message: string): string {
+  return message
+    .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+    .replace(/\b(cfut_|sk-|eyJ)[A-Za-z0-9._-]+/g, '[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240);
 }
 
 function mapUpstreamError(error: unknown): AppError {
@@ -83,6 +129,13 @@ function mapUpstreamError(error: unknown): AppError {
   }
   return new AppError('UPSTREAM_AI_ERROR', 'Workers AI request failed.', {
     reason: 'upstream_error',
+    upstream: sanitizeUpstreamMessage(message),
+  });
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 }
 
@@ -90,14 +143,23 @@ export class ModelClient {
   constructor(private readonly ai: AiBinding) {}
 
   async run(model: string, inputs: Record<string, unknown>): Promise<unknown> {
-    try {
-      return await this.ai.run(model, inputs);
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await this.ai.run(model, inputs);
+      } catch (error) {
+        if (error instanceof AppError) {
+          throw error;
+        }
+        const mapped = mapUpstreamError(error);
+        if (mapped.code === 'QUOTA_EXCEEDED' || attempt === 1) {
+          throw mapped;
+        }
+        lastError = error;
+        await delay(400);
       }
-      throw mapUpstreamError(error);
     }
+    throw mapUpstreamError(lastError);
   }
 
   async generateText(
@@ -107,9 +169,10 @@ export class ModelClient {
   ): Promise<string> {
     const payload = await this.run(model, {
       messages,
-      max_tokens: options.maxTokens ?? 1024,
+      max_tokens: options.maxTokens ?? 2048,
       temperature: options.temperature ?? 0,
       stream: false,
+      enable_thinking: false,
     });
     return extractGeneratedText(payload);
   }

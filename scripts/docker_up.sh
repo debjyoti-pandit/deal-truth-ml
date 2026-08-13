@@ -32,16 +32,8 @@ if [ -z "${TOKEN_SET}" ] && [ "${HOST_LOGIN}" -ne 1 ]; then
   exit 1
 fi
 
-if [ -z "${WRANGLER_CONFIG_DIR:-}" ]; then
-  if [ -d "${HOME}/Library/Preferences/.wrangler" ]; then
-    export WRANGLER_CONFIG_DIR="${HOME}/Library/Preferences/.wrangler"
-  elif [ -d "${HOME}/.config/.wrangler" ]; then
-    export WRANGLER_CONFIG_DIR="${HOME}/.config/.wrangler"
-  else
-    mkdir -p "${HOME}/.wrangler"
-    export WRANGLER_CONFIG_DIR="${HOME}/.wrangler"
-  fi
-fi
+# shellcheck source=scripts/wrangler_config_dir.sh
+source "${ROOT}/scripts/wrangler_config_dir.sh"
 
 echo "Starting deal-truth-ml on port 8081..."
 echo "  wrangler config: ${WRANGLER_CONFIG_DIR}"

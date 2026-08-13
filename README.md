@@ -169,7 +169,7 @@ Free plan: **10,000 neurons/day**. Exhaustion returns `QUOTA_EXCEEDED` instead o
 | `make login`   | `wrangler login` + `whoami`                           |
 | `make up` | Docker Compose `ml` on **:8081** + **ngrok** inspector **:4041**, wait for health, print public URL |
 | `make down` | `docker compose down` |
-| `make restart` | Recreate `ml` and `ngrok` |
+| `make restart` | After code changes: rebuild `ml`, recreate `ml` + `ngrok`, wait for `/health/live` |
 | `make dev`     | Host `wrangler dev` on **:8081** (foreground)         |
 | `make check`   | `GET /health/live`                                    |
 | `make smoke`   | health + sample `POST /classify`                      |

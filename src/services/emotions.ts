@@ -27,7 +27,7 @@ export async function analyzeEmotions(
     'fast',
     emotionsPrompt(parsed.data.items),
     emotionResponseSchema,
-    { maxTokens: 1600 },
+    { maxTokens: 4096 },
   );
   const byId = new Map(data.items.map((item) => [item.id, item]));
   const items = parsed.data.items.map((item) => {

@@ -61,6 +61,8 @@ export function createApp(env: Env): Hono<AppEnv> {
       duration_ms: Date.now() - (c.get('startMs') ?? Date.now()),
       success: false,
       error_code: appError.code,
+      error_detail:
+        typeof appError.details.upstream === 'string' ? appError.details.upstream : undefined,
     });
     return c.json(errorEnvelope(appError, requestId), appError.status as 400);
   });
