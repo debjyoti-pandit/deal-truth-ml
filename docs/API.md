@@ -113,3 +113,22 @@ Each insight carries `segment_ids` only.
 | `POST /generate` | `{ prompt, max_tokens? }` | `{ text }` |
 
 The parser in `deal-truth/app/ml/__init__.py` accepts `results` / `data` / `items`.
+
+## Consumer behavior (deal-truth-api)
+
+What the backend does with these routes — useful when debugging an integration:
+
+- **Base URL resolution** (API side): `ML_SERVICE_BASE_URL` → `https://{ML_NGROK_DOMAIN}` →
+  `http://localhost:8081`. `make up` here writes `ML_NGROK_DOMAIN` into `deal-truth/.env`.
+- **Auth**: API sends `Authorization: Bearer {ML_SERVICE_API_KEY}`; must equal this Worker's
+  `INTERNAL_API_TOKEN` (both empty locally). Ngrok hosts get `ngrok-skip-browser-warning`.
+- **Timeout**: the API allows a **300s** read timeout because compat classify/emotion chunk
+  batches sequentially inside a single HTTP request.
+- **Labels**: compat `/classify` returns slug ids (`pain_point`); the API maps them back to
+  its extractor keys (`pain point`) with `canonical_sales_label`, so either form is safe.
+- **Embeddings**: `/embed` vectors are 1024-dim and stored in pgvector `vector(1024)`
+  (`transcript_chunks.embedding`, API migration `0002_embedding_1024`).
+- **Degradation**: on `AUTH_FAILED`/5xx/timeout the API raises named `ML_*` errors; the
+  pipeline finishes `PARTIAL` with deterministic analysis intact, and Ask-the-Call falls back
+  to lexical retrieval (`retrieval_lexical_fallback`). An outage here never blocks transcripts
+  or deterministic metrics.

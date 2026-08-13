@@ -13,6 +13,8 @@ export function classifyPrompt(
 ): string {
   return `Score each text against the candidate labels from 0.0 to 1.0.
 Use the hypothesis as the meaning of the label.
+Estimate a real score for every label you include — never copy a score from this prompt.
+Scoring guide: 0.9-1.0 explicit and unambiguous, 0.6-0.85 clearly present, 0.35-0.6 weak or implied.
 Return compact JSON only. For each item include at most 8 labels with score >= 0.35. Omit the rest. No reasoning.
 
 Labels:
@@ -21,27 +23,28 @@ ${labels.map((label) => `- ${label.id}: ${label.hypothesis}`).join('\n')}
 Items:
 ${items.map((item) => `- id=${item.id} text=${JSON.stringify(item.text)}`).join('\n')}
 
-Return JSON:
-{"items":[{"id":"...","labels":[{"id":"...","score":0.82}]}]}`;
+Return JSON shaped like:
+{"items":[{"id":"<item id>","labels":[{"id":"<label id>","score":<your estimate>}]}]}`;
 }
 
 export function emotionsPrompt(items: { id: string; text: string }[]): string {
   return `Classify each sales utterance. Keep three independent axes. Do not merge them.
 
-Emotion labels (choose scores for all): ${SALES_EMOTIONS.join(', ')}
-Buying intent labels (choose scores for all): ${BUYING_INTENT.join(', ')}
-Deal signal labels (choose scores for all): ${DEAL_SIGNALS.join(', ')}
+Emotion labels: ${SALES_EMOTIONS.join(', ')}
+Buying intent labels: ${BUYING_INTENT.join(', ')}
+Deal signal labels: ${DEAL_SIGNALS.join(', ')}
 
-Example: "I absolutely love this product, but finance froze our budget until next year."
-- emotion: enthusiastic high
-- buying_intent: negative/weak
-- deal_signals: budget_blocker high
+Score labels from 0.0 to 1.0 based on the text. Estimate real scores — never copy scores from this prompt.
+Per axis include only labels with score >= 0.25 (at most 4). Omit the rest. No reasoning.
+
+Worked example — "I absolutely love this product, but finance froze our budget until next year." scores as:
+{"id":"example","emotion":[{"label":"enthusiastic","score":0.9}],"buying_intent":[{"label":"negative","score":0.7}],"deal_signals":[{"label":"budget_blocker","score":0.85}]}
 
 Items:
 ${items.map((item) => `- id=${item.id} text=${JSON.stringify(item.text)}`).join('\n')}
 
-Return JSON:
-{"items":[{"id":"...","emotion":[{"label":"enthusiastic","score":0.0}],"buying_intent":[{"label":"negative","score":0.0}],"deal_signals":[{"label":"budget_blocker","score":0.0}]}]}`;
+Return JSON with one entry per item id (do not include the example):
+{"items":[{"id":"...","emotion":[...],"buying_intent":[...],"deal_signals":[...]}]}`;
 }
 
 export function generatePrompt(task: string, input: string): string {

@@ -68,6 +68,38 @@ describe('extractGeneratedText', () => {
   it('throws when the model returns an empty payload', () => {
     expect(() => extractGeneratedText({ thinking: '   ', response: '' })).toThrow(/no text/);
   });
+
+  it('reads content from an OpenAI-style chat completion', () => {
+    expect(
+      extractGeneratedText({
+        id: 'chatcmpl-123',
+        object: 'chat.completion',
+        model: '@cf/qwen/qwen3-30b-a3b-fp8',
+        choices: [{ message: { role: 'assistant', content: '{"items":[]}' }, finish_reason: 'stop' }],
+      }),
+    ).toBe('{"items":[]}');
+  });
+
+  it('deduplicates text repeated across response and choices', () => {
+    expect(
+      extractGeneratedText({
+        response: 'Call summary: greeting.',
+        choices: [{ message: { role: 'assistant', content: 'Call summary: greeting.' } }],
+      }),
+    ).toBe('Call summary: greeting.');
+  });
+
+  it('never returns chat metadata when content is empty', () => {
+    expect(() =>
+      extractGeneratedText({
+        id: 'chatcmpl-456',
+        object: 'chat.completion',
+        model: '@cf/qwen/qwen3-30b-a3b-fp8',
+        choices: [{ message: { role: 'assistant', content: '' }, finish_reason: 'length' }],
+        usage: { prompt_tokens: 10, completion_tokens: 20 },
+      }),
+    ).toThrow(/no text/);
+  });
 });
 
 describe('taxonomies', () => {

@@ -58,9 +58,15 @@ export async function classifyItems(
       { maxTokens: CLASSIFY_MAX_TOKENS },
     );
     model = used;
-    for (const row of data.items) {
-      byId.set(row.id, row);
-    }
+    data.items.forEach((row, index) => {
+      const normalized = { id: row.id, labels: row.labels ?? [] };
+      byId.set(normalized.id, normalized);
+      // Models sometimes re-key ids; fall back to positional matching within the chunk.
+      const positional = chunk[index];
+      if (positional && !data.items.some((r) => r.id === positional.id)) {
+        byId.set(positional.id, normalized);
+      }
+    });
   }
   return {
     model,

@@ -34,9 +34,20 @@ export async function analyzeEmotions(
       maxTokens: 2048,
     });
     model = used;
-    for (const row of data.items) {
-      byId.set(row.id, row);
-    }
+    data.items.forEach((row, index) => {
+      const normalized = {
+        id: row.id,
+        emotion: row.emotion ?? [],
+        buying_intent: row.buying_intent ?? [],
+        deal_signals: row.deal_signals ?? [],
+      };
+      byId.set(normalized.id, normalized);
+      // Models sometimes re-key ids; fall back to positional matching within the chunk.
+      const positional = chunk[index];
+      if (positional && !data.items.some((r) => r.id === positional.id)) {
+        byId.set(positional.id, normalized);
+      }
+    });
   }
   const items = sourceItems.map((item) => {
     const result = byId.get(item.id);

@@ -8,8 +8,8 @@ export const scoredLabelSchema = z.object({
 });
 
 export const classifyItemSchema = z.object({
-  id: z.string(),
-  labels: z.array(scoredLabelSchema),
+  id: z.coerce.string(),
+  labels: z.array(scoredLabelSchema).default([]),
 });
 
 export const classifyResponseSchema = z.object({
@@ -21,11 +21,13 @@ export const emotionBlockSchema = z.object({
   score: unitScore,
 });
 
+// Partial rows are usable: a missing axis is an empty axis, not a schema failure
+// (strict parsing made the repair pass return empty items and the API saw all-empty labels).
 export const emotionItemSchema = z.object({
-  id: z.string(),
-  emotion: z.array(emotionBlockSchema),
-  buying_intent: z.array(emotionBlockSchema),
-  deal_signals: z.array(emotionBlockSchema),
+  id: z.coerce.string(),
+  emotion: z.array(emotionBlockSchema).default([]),
+  buying_intent: z.array(emotionBlockSchema).default([]),
+  deal_signals: z.array(emotionBlockSchema).default([]),
 });
 
 export const emotionResponseSchema = z.object({

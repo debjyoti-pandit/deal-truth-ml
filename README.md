@@ -407,13 +407,23 @@ Do not commit `.dev.vars` or `.env`. Transcript text is never logged.
 
 
 
+## How the API behaves when this Worker is down
+
+The API (`deal-truth-api`) treats an outage here as **infrastructure, never a deal judgment**:
+
+- Pipeline classify/emotion/embed failures become warnings; the run finishes **`PARTIAL`** with deterministic analysis intact (named error `ML_SERVICE_UNAVAILABLE`, `failure_kind: ML_INFERENCE`).
+- `POST .../ask` degrades to **lexical retrieval** (`mode: retrieval_lexical_fallback`) and returns `mode: no_index` (200) for calls with no indexed chunks — no 503 to the UI.
+- Restore for a demo: `make up` here (local + ngrok) or `make deploy` (production Worker), then `cd ../deal-truth && make restart`.
+
 ## Named limitations
 
 - Daily Workers AI neuron quota can exhaust (`QUOTA_EXCEEDED`).
 - Cloudflare may change model catalogue or IDs.
 - Models can hallucinate; the API evidence validator is the ship gate.
-- Compat `/emotion` is not GoEmotions.
-- Embeddings are 1024-dim; the API still uses `VECTOR(384)` until migrated — Ask-the-Call / indexing may fail locally.
+- Compat `/emotion` is not GoEmotions — it is the sales-emotion taxonomy (emotion + buying-intent + deal-signal axes flattened for the compat route).
+- Compat `/classify` returns slug label ids (`pain_point`); the API maps them back to display labels (`pain point`) via `canonical_sales_label`.
+- Embeddings are **1024-dim** and the API matches with pgvector `vector(1024)` (migration `0002_embedding_1024`) — the earlier `VECTOR(384)` mismatch is resolved.
+- Compat classify/emotion chunk sequentially **inside one HTTP request**; the API client allows a 300s read timeout for large batches.
 - No models on the Oracle VM or in this Docker image.
 
 

@@ -75,7 +75,7 @@ export class ModelRouter {
         {
           role: 'system',
           content:
-            'You are Deal Truth ML. Return only the requested text. Do not claim factual grounding. Do not invent evidence.',
+            'You are Deal Truth ML.\n/no_think\nDo not use chain-of-thought or reasoning. Return only the requested text. Do not claim factual grounding. Do not invent evidence.',
         },
         { role: 'user', content: userPrompt },
       ],

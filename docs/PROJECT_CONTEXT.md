@@ -155,14 +155,29 @@ cd deal-truth && make up
 
 `CLOUDFLARE_API_TOKEN` (Docker without `wrangler login`) or `make login` (host) is required. ngrok: `NGROK_AUTHTOKEN` plus a **distinct** `NGROK_DOMAIN` from the API. Details: [README](../README.md), [HOSTING.md](HOSTING.md).
 
-## 6. Backend follow-ups (`deal-truth`, not this repo)
+## 6. Backend status (`deal-truth`, not this repo)
 
-1. Set `ML_SERVICE_BASE_URL` to the Worker URL and `ML_SERVICE_API_KEY` to `INTERNAL_API_TOKEN`.
-2. Migrate `transcript_chunks.embedding` from `VECTOR(384)` to `VECTOR(1024)` and re-index.
-3. Adopt `/v1/analyze-call` and `/v1/rerank`; keep compat aliases until the client is updated.
-4. Treat `/v1/emotions` as the sales taxonomy; do not map it to GoEmotions groupings.
-5. Move Postgres/storage to Supabase and deploy API/worker/Valkey/Caddy to the Oracle VM.
-6. Keep Celery + Valkey (do not rewrite to QStash unless Oracle capacity fails).
+Done (as of 2026-08-13):
+
+1. ~~Wire the API~~ — the API resolves this Worker via `ML_SERVICE_BASE_URL` →
+   `https://{ML_NGROK_DOMAIN}` → `http://localhost:8081`; `make up` here writes
+   `ML_NGROK_DOMAIN` into `deal-truth/.env`. Bearer = `INTERNAL_API_TOKEN`.
+2. ~~Vector migration~~ — `transcript_chunks.embedding` is `VECTOR(1024)` (API migration
+   `0002_embedding_1024`); Qwen3 1024-dim embeddings index cleanly.
+3. Slug labels (`pain_point`) are mapped back to extractor keys API-side
+   (`canonical_sales_label`); either casing is safe on `/classify`.
+4. The API degrades when this Worker is down: pipeline → `PARTIAL` with warnings,
+   Ask-the-Call → lexical retrieval (`retrieval_lexical_fallback`) or `no_index` — never a
+   deal judgment. The UI-facing behavior is documented in the API repo
+   (`docs/frontend-contract.md`, served at `/api/v1/reference/frontend-contract.md`).
+
+Still open:
+
+1. Adopt `/v1/analyze-call` and `/v1/rerank` in the API; compat aliases (`/classify`,
+   `/emotion`, `/embed`, `/generate`) remain the live contract until then.
+2. Treat `/v1/emotions` as the sales taxonomy; do not map it to GoEmotions groupings.
+3. Move Postgres/storage to Supabase and deploy API/worker/Valkey/Caddy to the Oracle VM.
+4. Keep Celery + Valkey (do not rewrite to QStash unless Oracle capacity fails).
 
 ---
 

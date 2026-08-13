@@ -10,6 +10,8 @@ export interface AiBinding {
   run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
 }
 
+// Chat-completion metadata must never be mistaken for generated text
+// (finish_reason "length", role "assistant", ids, model names, ...).
 const SKIP_TEXT_KEYS = new Set([
   'thinking',
   'reasoning',
@@ -17,6 +19,17 @@ const SKIP_TEXT_KEYS = new Set([
   'logprobs',
   'usage',
   'prompt_logprobs',
+  'finish_reason',
+  'stop_reason',
+  'role',
+  'id',
+  'model',
+  'object',
+  'name',
+  'system_fingerprint',
+  'request_id',
+  'created',
+  'tool_calls',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -91,7 +104,10 @@ export function extractGeneratedText(payload: unknown): string {
   }
   const preferred: string[] = [];
   collectFromKeys(payload, preferred, ['output_text', 'response', 'text']);
-  const joined = preferred.join('\n').trim();
+  // Some Workers AI chat models return the same text in both `response` and
+  // `choices[].message.content`; keep one copy.
+  const unique = [...new Set(preferred.map((s) => s.trim()).filter(Boolean))];
+  const joined = unique.join('\n').trim();
   if (joined) {
     return joined;
   }
