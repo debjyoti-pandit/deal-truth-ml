@@ -11,8 +11,9 @@ export function classifyPrompt(
   items: { id: string; text: string }[],
   labels: { id: string; hypothesis: string }[],
 ): string {
-  return `Score each text against each candidate label from 0.0 to 1.0.
+  return `Score each text against the candidate labels from 0.0 to 1.0.
 Use the hypothesis as the meaning of the label.
+Return compact JSON only. For each item include at most 8 labels with score >= 0.35. Omit the rest. No reasoning.
 
 Labels:
 ${labels.map((label) => `- ${label.id}: ${label.hypothesis}`).join('\n')}
@@ -21,7 +22,7 @@ Items:
 ${items.map((item) => `- id=${item.id} text=${JSON.stringify(item.text)}`).join('\n')}
 
 Return JSON:
-{"items":[{"id":"...","labels":[{"id":"...","score":0.0}]}]}`;
+{"items":[{"id":"...","labels":[{"id":"...","score":0.82}]}]}`;
 }
 
 export function emotionsPrompt(items: { id: string; text: string }[]): string {

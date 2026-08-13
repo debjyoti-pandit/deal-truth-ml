@@ -19,3 +19,13 @@ function sanitize(entry: RequestLog): RequestLog {
 export function logRequest(entry: RequestLog): void {
   console.log(JSON.stringify(sanitize(entry)));
 }
+
+export function loggableErrorDetail(error: { details: Record<string, unknown> }): string | undefined {
+  if (typeof error.details.upstream === 'string' && error.details.upstream) {
+    return error.details.upstream.slice(0, 240);
+  }
+  if (Array.isArray(error.details.issues) && error.details.issues.length > 0) {
+    return JSON.stringify(error.details.issues).slice(0, 240);
+  }
+  return undefined;
+}

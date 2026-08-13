@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import { emotionsPrompt } from '../ai/prompts';
 import type { ModelRouter } from '../ai/router';
-import { emotionResponseSchema } from '../ai/schemas';
+import { emotionResponseSchema, type EmotionResponse } from '../ai/schemas';
 import type { AppConfig } from '../core/config';
 import { AppError } from '../core/errors';
 import { BUYING_INTENT, DEAL_SIGNALS, SALES_EMOTIONS } from '../taxonomies/emotions';
 import { assertBatch } from '../api/validation';
+
+const EMOTION_ITEM_CHUNK = 4;
 
 const requestSchema = z.object({
   items: z.array(z.object({ id: z.string().min(1), text: z.string() })).min(1),
@@ -23,14 +25,20 @@ export async function analyzeEmotions(
     throw new AppError('INVALID_REQUEST', 'Invalid emotions request.');
   }
   assertBatch(parsed.data.items, config);
-  const { data, model } = await router.json(
-    'fast',
-    emotionsPrompt(parsed.data.items),
-    emotionResponseSchema,
-    { maxTokens: 4096 },
-  );
-  const byId = new Map(data.items.map((item) => [item.id, item]));
-  const items = parsed.data.items.map((item) => {
+  const byId = new Map<string, EmotionResponse['items'][number]>();
+  let model = router.modelId('fast');
+  const sourceItems = parsed.data.items;
+  for (let offset = 0; offset < sourceItems.length; offset += EMOTION_ITEM_CHUNK) {
+    const chunk = sourceItems.slice(offset, offset + EMOTION_ITEM_CHUNK);
+    const { data, model: used } = await router.json('fast', emotionsPrompt(chunk), emotionResponseSchema, {
+      maxTokens: 2048,
+    });
+    model = used;
+    for (const row of data.items) {
+      byId.set(row.id, row);
+    }
+  }
+  const items = sourceItems.map((item) => {
     const result = byId.get(item.id);
     return {
       id: item.id,

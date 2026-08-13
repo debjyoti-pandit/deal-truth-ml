@@ -39,6 +39,6 @@ Free allocation: 10,000 neurons/day on Workers Free. Exhaustion returns `QUOTA_E
 
 ## Strict JSON
 
-Chat models are prompted for JSON only. Output is parsed, validated with zod, and repaired **once**. A second failure is `SCHEMA_INVALID`.
+Chat models are prompted for JSON only. Output is parsed, validated with zod, and repaired **once**. A second failure is `SCHEMA_INVALID`. Classify and emotion batches are chunked (3–4 items) so Qwen does not hit max_tokens and return truncated JSON.
 
 Models must return segment IDs, never timestamps or invented quotes.

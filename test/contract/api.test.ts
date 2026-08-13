@@ -42,6 +42,18 @@ describe('v1 contract', () => {
     expect(ai.calls[0]?.model).toContain('qwen3-30b');
   });
 
+  it('classifies long batches in chunks', async () => {
+    const items = Array.from({ length: 7 }, (_, index) => ({
+      id: `seg-${index}`,
+      text: 'Budget is frozen until next quarter.',
+    }));
+    const { status, json, ai } = await post('/v1/classify', { items, threshold: 0.5 });
+    expect(status).toBe(200);
+    expect((json.items as unknown[]).length).toBe(7);
+    const classifyCalls = ai.calls.filter((call) => !call.model.includes('embedding'));
+    expect(classifyCalls.length).toBeGreaterThanOrEqual(3);
+  });
+
   it('keeps emotion, intent, and deal signals separate', async () => {
     const { status, json } = await post('/v1/emotions', {
       items: [

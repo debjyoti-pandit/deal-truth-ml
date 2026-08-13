@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
+const unitScore = z.coerce.number().transform((value) => Math.min(1, Math.max(0, value)));
+
 export const scoredLabelSchema = z.object({
   id: z.string().min(1),
-  score: z.number().min(0).max(1),
+  score: unitScore,
 });
 
 export const classifyItemSchema = z.object({
@@ -16,7 +18,7 @@ export const classifyResponseSchema = z.object({
 
 export const emotionBlockSchema = z.object({
   label: z.string().min(1),
-  score: z.number().min(0).max(1),
+  score: unitScore,
 });
 
 export const emotionItemSchema = z.object({

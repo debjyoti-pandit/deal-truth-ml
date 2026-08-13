@@ -7,6 +7,10 @@ import { AppError } from '../core/errors';
 import { defaultCandidateLabels, salesLabelById } from '../taxonomies/sales-labels';
 import { assertBatch } from '../api/validation';
 
+/** Keep Qwen JSON small enough to finish before max_tokens / Workers AI timeouts. */
+export const CLASSIFY_ITEM_CHUNK = 3;
+const CLASSIFY_MAX_TOKENS = 2048;
+
 const requestSchema = z.object({
   items: z.array(z.object({ id: z.string().min(1), text: z.string() })).min(1),
   candidate_labels: z
@@ -43,10 +47,21 @@ export async function classifyItems(
   const { items, candidate_labels, threshold, top_k } = parsed.data;
   assertBatch(items, config);
   const labels = candidate_labels?.length ? candidate_labels : defaultCandidateLabels();
-  const { data, model } = await router.json('fast', classifyPrompt(items, labels), classifyResponseSchema, {
-    maxTokens: 4096,
-  });
-  const byId = new Map(data.items.map((item) => [item.id, item]));
+  const byId = new Map<string, { id: string; labels: { id: string; score: number }[] }>();
+  let model = router.modelId('fast');
+  for (let offset = 0; offset < items.length; offset += CLASSIFY_ITEM_CHUNK) {
+    const chunk = items.slice(offset, offset + CLASSIFY_ITEM_CHUNK);
+    const { data, model: used } = await router.json(
+      'fast',
+      classifyPrompt(chunk, labels),
+      classifyResponseSchema,
+      { maxTokens: CLASSIFY_MAX_TOKENS },
+    );
+    model = used;
+    for (const row of data.items) {
+      byId.set(row.id, row);
+    }
+  }
   return {
     model,
     items: items.map((item) => {

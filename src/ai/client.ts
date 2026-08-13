@@ -165,7 +165,7 @@ export class ModelClient {
   async generateText(
     model: string,
     messages: ChatMessage[],
-    options: { maxTokens?: number; temperature?: number } = {},
+    options: { maxTokens?: number; temperature?: number; json?: boolean } = {},
   ): Promise<string> {
     const payload = await this.run(model, {
       messages,
@@ -173,6 +173,8 @@ export class ModelClient {
       temperature: options.temperature ?? 0,
       stream: false,
       enable_thinking: false,
+      thinking: false,
+      ...(options.json ? { response_format: { type: 'json_object' } } : {}),
     });
     return extractGeneratedText(payload);
   }
@@ -182,7 +184,7 @@ export class ModelClient {
     messages: ChatMessage[],
     options: { maxTokens?: number; temperature?: number } = {},
   ): Promise<unknown> {
-    const text = await this.generateText(model, messages, options);
+    const text = await this.generateText(model, messages, { ...options, json: true });
     return parseJsonObject(text);
   }
 
