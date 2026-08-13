@@ -17,7 +17,7 @@ Here, **one command starts the ML Worker on port 8081**, opens an **ngrok HTTPS 
 1. Creates `.dev.vars` and `.env` from examples if missing (empty placeholders only). Copies `NGROK_AUTHTOKEN` from sibling `deal-truth/.env` when this file is still empty (never printed).
 2. Requires Cloudflare auth: `CLOUDFLARE_API_TOKEN` in `.env`, **or** a successful `npx wrangler whoami` (OAuth on macOS is under `~/Library/Preferences/.wrangler`, mounted into the container).
 3. `docker compose up --build` for `ml` (`wrangler dev` on **:8081**) and `ngrok` (inspector **:4041**, so it does not collide with the API tunnel on **:4040**).
-4. Curls `/health/live` until ready, then prints the public `https://…ngrok…` URL and pins `NGROK_DOMAIN` if it was empty.
+4. Curls `/health/live` until ready, then prints the public URL. `APP_NAME=deal-truth-ml` sets `NGROK_DOMAIN=deal-truth-ml-ngrok.ngrok-free.app` (same pattern as the API’s `deal-truth-ngrok.ngrok-free.app`). `make up` writes `ML_NGROK_DOMAIN` into sibling `deal-truth/.env`. Same-machine Docker API keeps `ML_SERVICE_BASE_URL=http://host.docker.internal:8081`.
 
 The container does **not** download Qwen/GPT-OSS. It calls **Cloudflare Workers AI** with your account quota (10k neurons/day on Free).
 
@@ -64,7 +64,7 @@ Use **localhost:8081** when the API is on the same machine. Use the **ML ngrok H
 | --- | --- | --- |
 | [`.dev.vars`](.dev.vars.example) | `INTERNAL_API_TOKEN=` | Wrangler secret. **Leave empty locally** so the API needs no Bearer. |
 | [`.env`](.env.example) | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ML_PORT=8081` | Cloudflare token only if you are not using `wrangler login`. |
-| [`.env`](.env.example) | `NGROK_AUTHTOKEN`, `NGROK_DOMAIN`, `NGROK_INSPECTOR_PORT=4041` | Same ngrok *account* as the API is fine. **`NGROK_DOMAIN` must be a different Dev Domain** than `deal-truth-ngrok.ngrok-free.app`. Inspector **4041** vs API **4040**. |
+| [`.env`](.env.example) | `APP_NAME=deal-truth-ml`, `NGROK_AUTHTOKEN`, `NGROK_DOMAIN` | Domain defaults to `{APP_NAME}-ngrok.ngrok-free.app` (`deal-truth-ml-ngrok.ngrok-free.app`). Must differ from the API host `deal-truth-ngrok.ngrok-free.app`. Inspector **4041**. |
 
 
 Do **not** put `ML_SERVICE_`* in this repo. Those belong on the API.
@@ -76,7 +76,8 @@ Model IDs are already in `wrangler.jsonc`. You do not need to set them unless yo
 
 | Var | Same machine | API cannot see localhost (Docker/remote) |
 | --- | --- | --- |
-| `ML_SERVICE_BASE_URL` | `http://localhost:8081` (API on host) or `http://host.docker.internal:8081` (API in Docker on Mac) | `https://<ML NGROK_DOMAIN>` from `make up` |
+| `ML_SERVICE_BASE_URL` | `http://localhost:8081` (API on host) or `http://host.docker.internal:8081` (API in Docker on Mac) | `https://$ML_NGROK_DOMAIN` (`deal-truth-ml-ngrok.ngrok-free.app`) |
+| `ML_NGROK_DOMAIN` | `deal-truth-ml-ngrok.ngrok-free.app` | same; `make up` in this repo writes it into `deal-truth/.env` |
 | `ML_SERVICE_API_KEY` | empty | empty unless `INTERNAL_API_TOKEN` is set |
 | `ML_GENERATION_ENABLED` | `true` | `true` |
 

@@ -32,6 +32,7 @@ else
   echo ".env already exists"
 fi
 
+ensure_key .env APP_NAME deal-truth-ml
 ensure_key .env CLOUDFLARE_API_TOKEN
 ensure_key .env CLOUDFLARE_ACCOUNT_ID
 ensure_key .env ML_PORT 8081
@@ -40,6 +41,25 @@ ensure_key .env NGROK_AUTH_TOKEN
 ensure_key .env NGROK_DOMAIN
 ensure_key .env NGROK_INSPECTOR_PORT 4041
 ensure_key .env NGROK_UPSTREAM "http://ml:8081"
+
+# Same pattern as deal-truth: stable Dev Domain from APP_NAME when NGROK_DOMAIN is empty.
+APP_NAME_VAL="$(grep -E '^APP_NAME=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)"
+APP_NAME_VAL="${APP_NAME_VAL:-deal-truth-ml}"
+DEFAULT_DOMAIN="${APP_NAME_VAL}-ngrok.ngrok-free.app"
+CURRENT_DOMAIN="$(grep -E '^NGROK_DOMAIN=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)"
+if [ -z "${CURRENT_DOMAIN}" ] || [ "${CURRENT_DOMAIN}" = "deal-truth-ngrok.ngrok-free.app" ]; then
+  python3 - .env "${DEFAULT_DOMAIN}" <<'PY'
+from pathlib import Path
+import re, sys
+path, domain = Path(sys.argv[1]), sys.argv[2]
+text = path.read_text(encoding="utf-8")
+updated, n = re.subn(r"^NGROK_DOMAIN=.*$", f"NGROK_DOMAIN={domain}", text, count=1, flags=re.M)
+if n == 0:
+    updated = text.rstrip() + f"\nNGROK_DOMAIN={domain}\n"
+path.write_text(updated, encoding="utf-8")
+PY
+  echo "NGROK_DOMAIN=${DEFAULT_DOMAIN} (from APP_NAME=${APP_NAME_VAL})"
+fi
 
 # Reuse the API ngrok authtoken if this .env still has an empty token (never printed).
 API_ENV="$(cd "${ROOT}/.." && pwd)/deal-truth/.env"

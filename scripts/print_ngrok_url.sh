@@ -37,13 +37,24 @@ while (( SECONDS < DEADLINE )); do
   sleep 1
 done
 
-# Fall back to pinned domain in .env (hostname only).
+# Fall back to pinned domain in .env (hostname only). Never use the API reserved hostname.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+API_DOMAIN=""
+API_ENV="$(cd "${ROOT}/.." && pwd)/deal-truth/.env"
+if [ -f "${API_ENV}" ]; then
+  API_DOMAIN="$(grep -E '^NGROK_DOMAIN=' "${API_ENV}" | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)"
+  API_DOMAIN="${API_DOMAIN#https://}"
+  API_DOMAIN="${API_DOMAIN#http://}"
+  API_DOMAIN="${API_DOMAIN%%/*}"
+fi
 if [ -f "${ROOT}/.env" ]; then
   domain="$(grep -E '^NGROK_DOMAIN=' "${ROOT}/.env" | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'")"
   domain="${domain#https://}"
   domain="${domain#http://}"
   domain="${domain%%/*}"
+  if [ "${domain}" = "deal-truth-ngrok.ngrok-free.app" ] || { [ -n "${API_DOMAIN}" ] && [ "${domain}" = "${API_DOMAIN}" ]; }; then
+    domain=""
+  fi
   if [ -n "${domain}" ] && [ "${domain}" != "localhost" ]; then
     echo "https://${domain}"
     exit 0

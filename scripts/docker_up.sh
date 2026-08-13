@@ -69,9 +69,21 @@ echo ""
 if [ -n "${TUNNEL}" ]; then
   echo "  Public ML:  ${TUNNEL}"
   echo "  Inspector:  ${INSPECTOR}"
-  echo "  deal-truth/.env when API cannot use localhost:"
-  echo "    ML_SERVICE_BASE_URL=${TUNNEL}"
-  bash scripts/persist_ngrok_domain.sh "${TUNNEL}" || true
+  echo "  Same-machine API (Docker):"
+  echo "    ML_SERVICE_BASE_URL=http://host.docker.internal:8081"
+  echo "    ML_NGROK_DOMAIN  is written to sibling deal-truth/.env"
+  case "${TUNNEL}" in
+    *://*.ngrok-free.app|*://*.ngrok.dev)
+      echo "  Remote API:"
+      echo "    ML_SERVICE_BASE_URL=${TUNNEL}"
+      bash scripts/persist_ngrok_domain.sh "${TUNNEL}" || true
+      bash scripts/sync_ml_url_to_api.sh "${TUNNEL}" || true
+      ;;
+    *)
+      echo "  Public ML this session: ${TUNNEL} (ephemeral; not pinned)."
+      bash scripts/sync_ml_url_to_api.sh || true
+      ;;
+  esac
 else
   echo "  Public ML:  (ngrok not ready — set NGROK_AUTHTOKEN in .env)"
   echo "  Domain:     NGROK_DOMAIN must differ from the API domain"

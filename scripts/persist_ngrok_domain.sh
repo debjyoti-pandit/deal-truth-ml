@@ -30,10 +30,36 @@ if [ -z "${HOST}" ]; then
   exit 1
 fi
 
+API_DOMAIN=""
+API_ENV="$(cd "${ROOT}/.." && pwd)/deal-truth/.env"
+if [ -f "${API_ENV}" ]; then
+  API_DOMAIN="$(grep -E '^NGROK_DOMAIN=' "${API_ENV}" | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)"
+  API_DOMAIN="${API_DOMAIN#https://}"
+  API_DOMAIN="${API_DOMAIN#http://}"
+  API_DOMAIN="${API_DOMAIN%%/*}"
+fi
+
+if [ "${HOST}" = "deal-truth-ngrok.ngrok-free.app" ] || { [ -n "${API_DOMAIN}" ] && [ "${HOST}" = "${API_DOMAIN}" ]; }; then
+  echo "refusing to pin NGROK_DOMAIN=${HOST} (already used by deal-truth API)" >&2
+  exit 1
+fi
+
+# Ephemeral *.ngrok.app hostnames die with the session; pinning them causes the next start to fail.
+case "${HOST}" in
+  *.ngrok-free.app|*.ngrok.dev) ;;
+  *.ngrok.app|*.ngrok.io)
+    exit 0
+    ;;
+esac
+
 current="$(grep -E '^NGROK_DOMAIN=' "${ENV_PATH}" | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)"
 current="${current#https://}"
 current="${current#http://}"
 current="${current%%/*}"
+
+if [ "${current}" = "deal-truth-ngrok.ngrok-free.app" ] || { [ -n "${API_DOMAIN}" ] && [ "${current}" = "${API_DOMAIN}" ]; }; then
+  current=""
+fi
 
 if [ -n "${current}" ]; then
   echo "NGROK_DOMAIN=${current}"
