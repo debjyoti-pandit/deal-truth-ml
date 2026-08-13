@@ -103,7 +103,7 @@ Each insight carries `segment_ids` only.
 
 | Route | Request | Response |
 |---|---|---|
-| `POST /classify` | `{ texts, labels? }` | `{ results: [{ labels: [{label, score}] }] }` |
+| `POST /classify` | `{ texts, labels? }` (omit `labels` to use the 24-label catalogue) | `{ results: [{ labels: [{label, score}] }] }` |
 | `POST /emotion` | `{ texts }` | `{ results: [{ labels: [{label, score}] }] }` |
 | `POST /embed` | `{ texts }` | `{ results: [{ embedding: number[] }] }` |
 | `POST /generate` | `{ prompt, max_tokens? }` | `{ text }` |

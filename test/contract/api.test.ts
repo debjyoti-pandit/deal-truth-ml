@@ -154,6 +154,15 @@ describe('backend compat aliases', () => {
     expect(typeof results[0]?.labels[0]?.score).toBe('number');
   });
 
+  it('POST /classify accepts texts without labels', async () => {
+    const { status, json } = await post('/classify', {
+      texts: ['We cannot buy until security approves it.'],
+    });
+    expect(status).toBe(200);
+    const results = json.results as { labels: { label: string; score: number }[] }[];
+    expect(results).toHaveLength(1);
+  });
+
   it('POST /emotion returns labels arrays', async () => {
     const { status, json } = await post('/emotion', {
       texts: ['This is impressive, but there is no budget this year.'],

@@ -191,14 +191,18 @@ export function createApp(env: Env): Hono<AppEnv> {
 
   app.post('/classify', async (c) => {
     const body = (await c.req.json()) as { texts?: unknown; labels?: unknown };
-    const texts = asStringArray(body.texts);
-    const labels = asStringArray(body.labels);
+    const texts = asStringArray(body.texts, 'texts');
+    const labels = asOptionalStringArray(body.labels, 'labels');
     const mapped = await classifyItems(router, config, {
       items: texts.map((text, index) => ({ id: String(index), text })),
-      candidate_labels: labels.map((label) => ({
-        id: slugify(label),
-        hypothesis: label,
-      })),
+      ...(labels.length
+        ? {
+            candidate_labels: labels.map((label) => ({
+              id: slugify(label),
+              hypothesis: label,
+            })),
+          }
+        : {}),
     });
     logSuccess(c, texts.length, countChars(texts), mapped.model);
     return c.json({
@@ -298,9 +302,19 @@ function bodyItems(body: unknown): string[] {
   );
 }
 
-function asStringArray(value: unknown): string[] {
+function asStringArray(value: unknown, field = 'texts'): string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((item) => typeof item === 'string')) {
-    throw new AppError('INVALID_REQUEST', 'texts must be a non-empty string array.');
+    throw new AppError('INVALID_REQUEST', `${field} must be a non-empty string array.`);
+  }
+  return value;
+}
+
+function asOptionalStringArray(value: unknown, field = 'labels'): string[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
+    throw new AppError('INVALID_REQUEST', `${field} must be a string array.`);
   }
   return value;
 }
