@@ -1,3 +1,4 @@
-# Copy to .dev.vars for wrangler. Never commit .dev.vars.
-# Leave empty to disable bearer auth (recommended for local).
+# Copy to .dev.vars for local wrangler. Never commit .dev.vars.
+# LOCAL: leave empty so deal-truth ML_SERVICE_API_KEY can stay empty.
+# PRODUCTION: do not use this file — run: npx wrangler secret put INTERNAL_API_TOKEN
 INTERNAL_API_TOKEN=

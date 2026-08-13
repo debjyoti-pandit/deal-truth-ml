@@ -3,23 +3,27 @@
 ## Local (Docker Compose) — same role as API `make up`
 
 ```bash
-cp .env.example .env          # set CLOUDFLARE_API_TOKEN
-make up                       # publishes http://localhost:8081
+make up                       # :8081 + ngrok inspector :4041
 make down
 ```
 
-`make up` runs `scripts/docker_up.sh`: bootstrap env files → `docker compose up --build -d --wait` → poll `/health/live`.
+`make up` runs `scripts/docker_up.sh`: bootstrap env files → `docker compose up --build -d --wait` (ml + ngrok) → poll `/health/live` → print the public HTTPS URL.
 
 The image runs `wrangler dev`. Inference is **Workers AI**, not local weights.
+
+ngrok inspector is **4041** so it can run next to the API tunnel on **4040**. `NGROK_DOMAIN` must be a **different** reserved hostname than the API (dashboard → [domains](https://dashboard.ngrok.com/domains)).
 
 Point **deal-truth**:
 
 ```text
-# API process on the host
+# Same machine, API on host
 ML_SERVICE_BASE_URL=http://localhost:8081
 
-# API/Celery in Docker
+# Same machine, API in Docker (Mac/Windows)
 ML_SERVICE_BASE_URL=http://host.docker.internal:8081
+
+# Remote API / Oracle VM / no host gateway
+ML_SERVICE_BASE_URL=https://<NGROK_DOMAIN from this repo's make up>
 
 ML_SERVICE_API_KEY=
 ML_GENERATION_ENABLED=true
@@ -33,7 +37,7 @@ make login
 make dev
 ```
 
-Same port **8081** so the API `.env` does not change.
+Same port **8081**. ngrok still comes from `make up` (Compose). Host-only `make dev` does not start ngrok.
 
 ## Production
 

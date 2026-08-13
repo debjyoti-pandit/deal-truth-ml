@@ -26,5 +26,26 @@ services:
       retries: 20
       start_period: 45s
 
+  ngrok:
+    image: ngrok/ngrok:3
+    container_name: deal-truth-ml-ngrok
+    restart: unless-stopped
+    depends_on:
+      ml:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/ngrok-entrypoint.sh"]
+    volumes:
+      - ./scripts/ngrok-entrypoint.sh:/ngrok-entrypoint.sh:ro
+      - ./scripts/ngrok.yml:/ngrok.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-${NGROK_AUTH_TOKEN:-}}
+      NGROK_AUTH_TOKEN: ${NGROK_AUTH_TOKEN:-}
+      NGROK_DOMAIN: ${NGROK_DOMAIN:-}
+      NGROK_UPSTREAM: ${NGROK_UPSTREAM:-http://ml:8081}
+    ports:
+      - "${NGROK_INSPECTOR_PORT:-4041}:4040"
+
 volumes:
   ml_node_modules:

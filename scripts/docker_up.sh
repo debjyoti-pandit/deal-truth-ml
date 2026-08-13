@@ -45,7 +45,7 @@ fi
 
 echo "Starting deal-truth-ml on port 8081..."
 echo "  wrangler config: ${WRANGLER_CONFIG_DIR}"
-docker rm -f deal-truth-ml >/dev/null 2>&1 || true
+docker rm -f deal-truth-ml deal-truth-ml-ngrok >/dev/null 2>&1 || true
 docker compose up --build -d --wait --remove-orphans
 
 echo ""
@@ -60,3 +60,20 @@ echo "    ML_SERVICE_API_KEY=   (empty unless INTERNAL_API_TOKEN is set)"
 echo "Stop with: make down"
 
 bash scripts/check_ready.sh http://127.0.0.1:8081 90
+
+NGROK_INSPECTOR_PORT="$(grep -E '^NGROK_INSPECTOR_PORT=' .env | head -1 | cut -d= -f2- || true)"
+NGROK_INSPECTOR_PORT="${NGROK_INSPECTOR_PORT:-4041}"
+INSPECTOR="http://127.0.0.1:${NGROK_INSPECTOR_PORT}"
+TUNNEL="$(bash scripts/print_ngrok_url.sh "${INSPECTOR}" 45 || true)"
+echo ""
+if [ -n "${TUNNEL}" ]; then
+  echo "  Public ML:  ${TUNNEL}"
+  echo "  Inspector:  ${INSPECTOR}"
+  echo "  deal-truth/.env when API cannot use localhost:"
+  echo "    ML_SERVICE_BASE_URL=${TUNNEL}"
+  bash scripts/persist_ngrok_domain.sh "${TUNNEL}" || true
+else
+  echo "  Public ML:  (ngrok not ready — set NGROK_AUTHTOKEN in .env)"
+  echo "  Domain:     NGROK_DOMAIN must differ from the API domain"
+  echo "  Inspector:  ${INSPECTOR}"
+fi

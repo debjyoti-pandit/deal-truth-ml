@@ -16,7 +16,7 @@ setup: install bootstrap
 	@echo "  1. npx wrangler login     (or set CLOUDFLARE_API_TOKEN in .env for Docker)"
 	@echo "  2. make dev               host wrangler on :8081"
 	@echo "     or  make up            Docker wrangler on :8081"
-	@echo "  3. In deal-truth/.env set ML_SERVICE_BASE_URL (see README)"
+	@echo "  3. In deal-truth/.env set ML_SERVICE_BASE_URL to localhost:8081 or the ngrok HTTPS URL"
 	@echo "  4. Restart deal-truth api + worker"
 
 lint:
@@ -50,7 +50,7 @@ up:
 	bash scripts/docker_up.sh
 
 restart:
-	docker compose up -d --build --force-recreate --no-deps ml
+	docker compose up -d --build --force-recreate --no-deps ml ngrok
 
 down:
 	docker compose down --remove-orphans

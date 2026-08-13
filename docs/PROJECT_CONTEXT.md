@@ -152,7 +152,7 @@ cd deal-truth-ml && make setup && make up     # :8081
 cd deal-truth && make up
 ```
 
-`CLOUDFLARE_API_TOKEN` (Docker) or `make login` (host) is required. Details: [README](../README.md), [HOSTING.md](HOSTING.md).
+`CLOUDFLARE_API_TOKEN` (Docker without `wrangler login`) or `make login` (host) is required. ngrok: `NGROK_AUTHTOKEN` plus a **distinct** `NGROK_DOMAIN` from the API. Details: [README](../README.md), [HOSTING.md](HOSTING.md).
 
 ## 6. Backend follow-ups (`deal-truth`, not this repo)
 

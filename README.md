@@ -4,7 +4,7 @@ Hosted inference router for **Deal Truth**. This repo is a **Cloudflare Worker**
 
 **Emotion is not buying intent.** Those axes stay separate.
 
-Full product map: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md).
+Full product map: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md). Local + production env: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
@@ -12,14 +12,12 @@ Full product map: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md).
 
 Same idea as `deal-truth` (`make up` there starts Postgres, Redis, SeaweedFS, API, worker).
 
-Here, **one command starts the ML Worker on port 8081** and waits until health is green:
+Here, **one command starts the ML Worker on port 8081**, opens an **ngrok HTTPS tunnel**, and waits until health is green:
 
-1. Creates `.dev.vars` and `.env` from examples if missing (empty placeholders only).
-
-`make up` requires Cloudflare auth: `CLOUDFLARE_API_TOKEN` in `.env`, **or** a successful `npx wrangler whoami` (OAuth is stored on macOS under `~/Library/Preferences/.wrangler`, which Compose mounts into the container).
-3. `docker compose up --build` for service `ml` (`wrangler dev --ip 0.0.0.0 --port 8081`).
-4. Publishes **[http://localhost:8081](http://localhost:8081)**.
-5. Curls `/health/live` until ready.
+1. Creates `.dev.vars` and `.env` from examples if missing (empty placeholders only). Copies `NGROK_AUTHTOKEN` from sibling `deal-truth/.env` when this file is still empty (never printed).
+2. Requires Cloudflare auth: `CLOUDFLARE_API_TOKEN` in `.env`, **or** a successful `npx wrangler whoami` (OAuth on macOS is under `~/Library/Preferences/.wrangler`, mounted into the container).
+3. `docker compose up --build` for `ml` (`wrangler dev` on **:8081**) and `ngrok` (inspector **:4041**, so it does not collide with the API tunnel on **:4040**).
+4. Curls `/health/live` until ready, then prints the public `https://…ngrok…` URL and pins `NGROK_DOMAIN` if it was empty.
 
 The container does **not** download Qwen/GPT-OSS. It calls **Cloudflare Workers AI** with your account quota (10k neurons/day on Free).
 
@@ -48,22 +46,25 @@ Then start the API stack in `/Users/debjyoti_pandit/Work/github/deal-truth` with
 
 ```text
 deal-truth-web          →  http://localhost:5173
-deal-truth API/Celery   →  http://localhost:8000   (make up in deal-truth)
-deal-truth-ml wrangler  →  http://localhost:8081   (make up in THIS repo)
+deal-truth API/Celery   →  http://localhost:8000   + ngrok :4040
+deal-truth-ml wrangler  →  http://localhost:8081   + ngrok :4041
                               │
                               ▼
                        Cloudflare Workers AI
 ```
+
+Use **localhost:8081** when the API is on the same machine. Use the **ML ngrok HTTPS URL** when the API is in Docker on Linux without host gateway, on another machine, or on the Oracle VM.
 
 
 
 ### Env in **this** repo
 
 
-| File                             | Vars                                                            | Notes                                                                                                                                                                                             |
-| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `[.dev.vars](.dev.vars.example)` | `INTERNAL_API_TOKEN=`                                           | Wrangler secret. **Leave empty locally** so the API needs no Bearer.                                                                                                                              |
-| `[.env](.env.example)`           | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ML_PORT=8081` | Required for **Docker**. Create a token at [API Tokens](https://dash.cloudflare.com/profile/api-tokens) with **Workers Scripts Edit** and **Workers AI**. Account ID is on the dashboard sidebar. |
+| File | Vars | Notes |
+| --- | --- | --- |
+| [`.dev.vars`](.dev.vars.example) | `INTERNAL_API_TOKEN=` | Wrangler secret. **Leave empty locally** so the API needs no Bearer. |
+| [`.env`](.env.example) | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ML_PORT=8081` | Cloudflare token only if you are not using `wrangler login`. |
+| [`.env`](.env.example) | `NGROK_AUTHTOKEN`, `NGROK_DOMAIN`, `NGROK_INSPECTOR_PORT=4041` | Same ngrok *account* as the API is fine. **`NGROK_DOMAIN` must be a different Dev Domain** than `deal-truth-ngrok.ngrok-free.app`. Inspector **4041** vs API **4040**. |
 
 
 Do **not** put `ML_SERVICE_`* in this repo. Those belong on the API.
@@ -73,11 +74,11 @@ Model IDs are already in `wrangler.jsonc`. You do not need to set them unless yo
 ### Env in **deal-truth** (`deal-truth/.env`)
 
 
-| Var                     | API on your Mac                            | API in Docker Compose              |
-| ----------------------- | ------------------------------------------ | ---------------------------------- |
-| `ML_SERVICE_BASE_URL`   | `http://localhost:8081`                    | `http://host.docker.internal:8081` |
-| `ML_SERVICE_API_KEY`    | empty (matches empty `INTERNAL_API_TOKEN`) | same                               |
-| `ML_GENERATION_ENABLED` | `true`                                     | `true`                             |
+| Var | Same machine | API cannot see localhost (Docker/remote) |
+| --- | --- | --- |
+| `ML_SERVICE_BASE_URL` | `http://localhost:8081` (API on host) or `http://host.docker.internal:8081` (API in Docker on Mac) | `https://<ML NGROK_DOMAIN>` from `make up` |
+| `ML_SERVICE_API_KEY` | empty | empty unless `INTERNAL_API_TOKEN` is set |
+| `ML_GENERATION_ENABLED` | `true` | `true` |
 
 
 Restart **api** and **worker** after changing those (`cd ../deal-truth && make restart` or `make up`).
@@ -165,9 +166,9 @@ Free plan: **10,000 neurons/day**. Exhaustion returns `QUOTA_EXCEEDED` instead o
 | -------------- | ----------------------------------------------------- |
 | `make setup`   | `npm install`, create `.dev.vars` / `.env` if missing |
 | `make login`   | `wrangler login` + `whoami`                           |
-| `make up`      | Docker Compose ML on **:8081**, wait for health       |
-| `make down`    | `docker compose down`                                 |
-| `make restart` | Recreate the `ml` container                           |
+| `make up` | Docker Compose `ml` on **:8081** + **ngrok** inspector **:4041**, wait for health, print public URL |
+| `make down` | `docker compose down` |
+| `make restart` | Recreate `ml` and `ngrok` |
 | `make dev`     | Host `wrangler dev` on **:8081** (foreground)         |
 | `make check`   | `GET /health/live`                                    |
 | `make smoke`   | health + sample `POST /classify`                      |
