@@ -1,8 +1,10 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { cors } from 'hono/cors';
 import { loadConfig } from './core/config';
 import { extractBearer, timingSafeEqual } from './core/auth';
-import { AppError, errorEnvelope } from './core/errors';
+import { AppError, errorEnvelope, isUpstreamCode } from './core/errors';
 import {
   configureLogger,
   logRequest,
@@ -13,6 +15,7 @@ import {
 } from './core/logging';
 import { countChars, newRequestId } from './core/request';
 import { ModelClient } from './ai/client';
+import type { AiBinding } from './ai/client';
 import { ModelRouter } from './ai/router';
 import { SALES_LABELS } from './taxonomies/sales-labels';
 import { analyzeCall } from './services/analyze';
@@ -36,10 +39,100 @@ function isProtected(path: string): boolean {
   return PROTECTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix));
 }
 
+/**
+ * The unversioned aliases the Python backend still calls. They are deprecated, not gone:
+ * the live pipeline depends on them, so they keep answering until deal-truth-api has
+ * migrated to the /v1 routes. Deleting them is a separate, later task.
+ *
+ * RFC 8594 `Sunset` is an HTTP-date; RFC 9745 `Deprecation: true` marks the route as
+ * deprecated now. `Link rel="successor-version"` names where the caller should go.
+ */
+const COMPAT_SUNSET = 'Thu, 31 Dec 2026 23:59:59 GMT';
+
+const COMPAT_SUCCESSORS: Record<string, string> = {
+  '/classify': '/v1/classify',
+  '/emotion': '/v1/emotions',
+  '/embed': '/v1/embeddings',
+  '/generate': '/v1/generate',
+};
+
+/**
+ * Most recent failed model call in the current request, so an upstream error can name
+ * the model that actually failed and can be told apart from a timeout. Written at the
+ * AI binding boundary, read only on the error path.
+ */
+interface UpstreamTrace {
+  model?: string;
+  timeout?: boolean;
+}
+
+const upstreamTrace = new AsyncLocalStorage<UpstreamTrace>();
+
+const TIMEOUT_PATTERN =
+  /(timed?[\s_-]?out|timeout|deadline exceeded|etimedout|\bgateway time-?out\b|\b504\b)/i;
+
+function isTimeoutError(error: unknown): boolean {
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    return true;
+  }
+  return TIMEOUT_PATTERN.test(error instanceof Error ? error.message : String(error));
+}
+
+/**
+ * Records which model failed, then rethrows the original error untouched. It must stay
+ * untouched: ModelClient rethrows an AppError immediately and only retries raw errors,
+ * so converting here would silently remove the upstream retry.
+ */
+function traceUpstreamCalls(ai: AiBinding): AiBinding {
+  return {
+    async run(model: string, inputs: Record<string, unknown>): Promise<unknown> {
+      try {
+        return await ai.run(model, inputs);
+      } catch (error) {
+        const trace = upstreamTrace.getStore();
+        if (trace) {
+          trace.model = model;
+          trace.timeout = isTimeoutError(error);
+        }
+        throw error;
+      }
+    },
+  };
+}
+
+/**
+ * Give the caller a status that matches what actually happened. A 404 that says 400, or a
+ * model timeout that says 500, sends whoever is debugging to the wrong side of the wire.
+ */
+function honestAppError(error: unknown, trace: UpstreamTrace | undefined): AppError {
+  if (!(error instanceof AppError)) {
+    return new AppError('INTERNAL_ERROR', 'An unexpected error occurred.');
+  }
+  if (!isUpstreamCode(error.code) || !trace?.model) {
+    return error;
+  }
+  const details = { ...error.details, model: trace.model };
+  if (trace.timeout) {
+    return new AppError('UPSTREAM_TIMEOUT', `Upstream model ${trace.model} timed out.`, details);
+  }
+  return new AppError(error.code, error.message, details);
+}
+
+/** A body that is not JSON is the caller's mistake (400), never an internal fault (500). */
+async function readJsonBody(c: Context<AppEnv>): Promise<unknown> {
+  try {
+    return await c.req.json();
+  } catch {
+    throw new AppError('INVALID_REQUEST', 'Request body must be valid JSON.', {
+      reason: 'malformed_json',
+    });
+  }
+}
+
 export function createApp(env: Env): Hono<AppEnv> {
   const config = loadConfig(env);
   configureLogger(config.logLevel);
-  const router = new ModelRouter(new ModelClient(env.AI), config);
+  const router = new ModelRouter(new ModelClient(traceUpstreamCalls(env.AI)), config);
   const app = new Hono<AppEnv>();
 
   app.use('*', async (c, next) => {
@@ -47,7 +140,7 @@ export function createApp(env: Env): Hono<AppEnv> {
     c.set('requestId', requestId);
     c.set('startMs', Date.now());
     c.header('X-Request-ID', requestId);
-    await runWithLogContext(requestId, () => next());
+    await upstreamTrace.run({}, () => runWithLogContext(requestId, () => next()));
   });
 
   // Backend-to-worker only. Do not reflect arbitrary Origin.
@@ -62,10 +155,7 @@ export function createApp(env: Env): Hono<AppEnv> {
 
   app.onError((error, c) => {
     const requestId = c.get('requestId') ?? 'unknown';
-    const appError =
-      error instanceof AppError
-        ? error
-        : new AppError('INTERNAL_ERROR', 'An unexpected error occurred.');
+    const appError = honestAppError(error, upstreamTrace.getStore());
     if (!(error instanceof AppError)) {
       logger.error('http.unhandled', {
         name: error instanceof Error ? error.name : 'unknown',
@@ -84,6 +174,25 @@ export function createApp(env: Env): Hono<AppEnv> {
     });
     return c.json(errorEnvelope(appError, requestId), appError.status as 400);
   });
+
+  // Compat routes still answer exactly as before — they are only marked, and the caller
+  // is recorded so the migration can be chased by user-agent instead of by guesswork.
+  // Registered ahead of auth so every response is marked, including a 401: a caller whose
+  // token is wrong should still learn the route is going away.
+  for (const [path, successor] of Object.entries(COMPAT_SUCCESSORS)) {
+    app.use(path, async (c, next) => {
+      c.header('Deprecation', 'true');
+      c.header('Sunset', COMPAT_SUNSET);
+      c.header('Link', `<${successor}>; rel="successor-version"`);
+      logger.warn('compat.deprecated_route', {
+        path,
+        successor,
+        sunset: COMPAT_SUNSET,
+        user_agent: c.req.header('user-agent') ?? 'unknown',
+      });
+      await next();
+    });
+  }
 
   app.use('*', async (c, next) => {
     if (!isProtected(c.req.path) || c.req.method === 'OPTIONS') {
@@ -152,7 +261,7 @@ export function createApp(env: Env): Hono<AppEnv> {
       if (!doc) {
         return c.json(
           errorEnvelope(
-            new AppError('INVALID_REQUEST', 'Unknown reference document.'),
+            new AppError('NOT_FOUND', 'Unknown reference document.'),
             c.get('requestId'),
           ),
           404,
@@ -165,28 +274,28 @@ export function createApp(env: Env): Hono<AppEnv> {
   mountReference('/api/v1');
 
   app.post('/v1/classify', async (c) => {
-    const body = await c.req.json();
+    const body = await readJsonBody(c);
     const result = await classifyItems(router, config, body);
     logSuccess(c, result.items.length, countChars(bodyItems(body)), result.model);
     return c.json({ items: result.items, model: result.model, request_id: c.get('requestId') });
   });
 
   app.post('/v1/emotions', async (c) => {
-    const body = await c.req.json();
+    const body = await readJsonBody(c);
     const result = await analyzeEmotions(router, config, body);
     logSuccess(c, result.items.length, countChars(bodyItems(body)), result.model);
     return c.json({ items: result.items, model: result.model, request_id: c.get('requestId') });
   });
 
   app.post('/v1/embeddings', async (c) => {
-    const body = await c.req.json();
+    const body = await readJsonBody(c);
     const result = await embedItems(router, config, body);
     logSuccess(c, result.items.length, countChars(bodyItems(body)), result.model);
     return c.json({ items: result.items, model: result.model, request_id: c.get('requestId') });
   });
 
   app.post('/v1/rerank', async (c) => {
-    const body = await c.req.json();
+    const body = await readJsonBody(c);
     const result = await rerankPassages(router, config, body);
     const passages = Array.isArray((body as { passages?: unknown }).passages)
       ? (body as { passages: { text: string }[] }).passages
@@ -196,14 +305,14 @@ export function createApp(env: Env): Hono<AppEnv> {
   });
 
   app.post('/v1/generate', async (c) => {
-    const body = await c.req.json();
+    const body = await readJsonBody(c);
     const result = await generateText(router, config, body);
     logSuccess(c, 1, String((body as { input?: string }).input ?? '').length, result.model);
     return c.json({ ...result, request_id: c.get('requestId') });
   });
 
   app.post('/v1/analyze-call', async (c) => {
-    const body = await c.req.json();
+    const body = await readJsonBody(c);
     const result = await analyzeCall(router, config, body);
     const segments = Array.isArray((body as { segments?: { text: string }[] }).segments)
       ? (body as { segments: { text: string }[] }).segments
@@ -212,8 +321,24 @@ export function createApp(env: Env): Hono<AppEnv> {
     return c.json({ ...result, request_id: c.get('requestId') });
   });
 
+  // Pure formatter. No model runs, no network call leaves, and no webhook URL is
+  // accepted, stored or echoed — the caller posts the returned blocks itself.
+  app.post('/v1/notify/preview', async (c) => {
+    const blocks = renderNotification(await readJsonBody(c));
+    logRequest({
+      request_id: String(c.get('requestId')),
+      method: c.req.method,
+      path: c.req.path,
+      status: 200,
+      item_count: blocks.length,
+      duration_ms: Date.now() - Number(c.get('startMs')),
+      success: true,
+    });
+    return c.json({ blocks, request_id: c.get('requestId') });
+  });
+
   app.post('/classify', async (c) => {
-    const body = (await c.req.json()) as { texts?: unknown; labels?: unknown };
+    const body = (await readJsonBody(c)) as { texts?: unknown; labels?: unknown };
     const texts = asStringArray(body.texts, 'texts');
     const labels = asOptionalStringArray(body.labels, 'labels');
     const mapped = await classifyItems(router, config, {
@@ -236,7 +361,7 @@ export function createApp(env: Env): Hono<AppEnv> {
   });
 
   app.post('/emotion', async (c) => {
-    const body = (await c.req.json()) as { texts?: unknown };
+    const body = (await readJsonBody(c)) as { texts?: unknown };
     const texts = asStringArray(body.texts);
     const mapped = await analyzeEmotions(router, config, {
       items: texts.map((text, index) => ({ id: String(index), text })),
@@ -262,7 +387,7 @@ export function createApp(env: Env): Hono<AppEnv> {
   });
 
   app.post('/embed', async (c) => {
-    const body = (await c.req.json()) as { texts?: unknown };
+    const body = (await readJsonBody(c)) as { texts?: unknown };
     const texts = asStringArray(body.texts);
     const mapped = await embedItems(router, config, {
       items: texts.map((text, index) => ({ id: String(index), text })),
@@ -275,7 +400,7 @@ export function createApp(env: Env): Hono<AppEnv> {
   });
 
   app.post('/generate', async (c) => {
-    const body = (await c.req.json()) as { prompt?: unknown; max_tokens?: unknown };
+    const body = (await readJsonBody(c)) as { prompt?: unknown; max_tokens?: unknown };
     if (typeof body.prompt !== 'string' || !body.prompt) {
       throw new AppError('INVALID_REQUEST', 'prompt is required.');
     }
@@ -289,8 +414,8 @@ export function createApp(env: Env): Hono<AppEnv> {
     return c.json({ text: mapped.text });
   });
 
-  app.notFound((_c) => {
-    throw new AppError('INVALID_REQUEST', 'Unknown route.');
+  app.notFound(() => {
+    throw new AppError('NOT_FOUND', 'Unknown route.');
   });
 
   return app;
@@ -352,6 +477,143 @@ function asOptionalStringArray(value: unknown, field = 'labels'): string[] {
     throw new AppError('INVALID_REQUEST', `${field} must be a string array.`);
   }
   return value;
+}
+
+type SlackBlock = Record<string, unknown>;
+
+const NOTIFY_TYPES = ['claim_refused', 'dimension_lost'] as const;
+
+/** Slack caps header plain_text at 150 chars and section mrkdwn at 3000. Stay inside both. */
+const HEADER_LIMIT = 150;
+const TEXT_LIMIT = 2000;
+const SHORT_LIMIT = 128;
+
+const NOTIFY_FOOTER =
+  'Deal Truth ML preview — rendered only. This service holds no webhook URL and sent nothing.';
+
+/**
+ * Field names a caller might use to smuggle a destination in. Rejected loudly rather
+ * than ignored: a caller that thinks this service delivers the message would otherwise
+ * believe an alert was sent when nothing was.
+ */
+const WEBHOOK_FIELDS = [
+  'webhook_url',
+  'webhook',
+  'url',
+  'callback_url',
+  'slack_webhook_url',
+  'hook_url',
+  'destination',
+];
+
+const URL_PATTERN = /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S+/gi;
+
+/**
+ * Strips every URL out of caller-supplied text. A webhook URL must not survive a round
+ * trip through this service even when someone pastes one into a claim or a reason.
+ */
+function scrubUrls(value: string): string {
+  return value.replace(URL_PATTERN, '[link removed]');
+}
+
+/** Slack mrkdwn control characters. Escaping `<` also disarms `<url|label>` link syntax. */
+function escapeMrkdwn(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function notifyText(value: unknown, field: string, limit = TEXT_LIMIT): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new AppError('INVALID_REQUEST', `${field} must be a non-empty string.`);
+  }
+  return escapeMrkdwn(scrubUrls(value.trim())).slice(0, limit);
+}
+
+function optionalNotifyText(value: unknown, field: string, limit = TEXT_LIMIT): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  return notifyText(value, field, limit);
+}
+
+/** Slack quotes one line per `>`, so every line needs the marker. */
+function blockQuote(value: string): string {
+  return value
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n');
+}
+
+function slackHeader(text: string): SlackBlock {
+  return { type: 'header', text: { type: 'plain_text', text: text.slice(0, HEADER_LIMIT) } };
+}
+
+function slackSection(text: string): SlackBlock {
+  return { type: 'section', text: { type: 'mrkdwn', text } };
+}
+
+function slackFields(...texts: string[]): SlackBlock {
+  return { type: 'section', fields: texts.map((text) => ({ type: 'mrkdwn', text })) };
+}
+
+function slackContext(text: string): SlackBlock {
+  return { type: 'context', elements: [{ type: 'mrkdwn', text }] };
+}
+
+function renderNotification(body: unknown): SlackBlock[] {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new AppError('INVALID_REQUEST', 'Body must be a JSON object.');
+  }
+  const event = body as Record<string, unknown>;
+  const smuggled = WEBHOOK_FIELDS.filter((name) => event[name] !== undefined);
+  if (smuggled.length > 0) {
+    throw new AppError(
+      'INVALID_REQUEST',
+      'This service never accepts a webhook URL. It renders blocks only — post them yourself.',
+      { rejected_fields: smuggled },
+    );
+  }
+  if (event.type === 'claim_refused') {
+    return claimRefusedBlocks(event);
+  }
+  if (event.type === 'dimension_lost') {
+    return dimensionLostBlocks(event);
+  }
+  throw new AppError('INVALID_REQUEST', `type must be one of: ${NOTIFY_TYPES.join(', ')}.`, {
+    supported_types: [...NOTIFY_TYPES],
+  });
+}
+
+function claimRefusedBlocks(event: Record<string, unknown>): SlackBlock[] {
+  const claim = notifyText(event.claim, 'claim');
+  const errorCode = notifyText(event.error_code, 'error_code', SHORT_LIMIT);
+  const reason = optionalNotifyText(event.reason, 'reason');
+  const evidence = optionalNotifyText(event.evidence, 'evidence');
+  const blocks: SlackBlock[] = [
+    slackHeader('Claim refused'),
+    slackSection(`*Claim*\n${blockQuote(claim)}`),
+    slackFields(`*Error code*\n\`${errorCode}\``, `*Reason*\n${reason ?? '_none supplied_'}`),
+  ];
+  // An absent quote is stated, never implied: this notification must not read as if
+  // the transcript backed the claim when nothing was attached.
+  blocks.push(
+    evidence
+      ? slackSection(`*Evidence*\n${blockQuote(evidence)}`)
+      : slackContext('No evidence quote was supplied with this event.'),
+  );
+  blocks.push(slackContext(NOTIFY_FOOTER));
+  return blocks;
+}
+
+function dimensionLostBlocks(event: Record<string, unknown>): SlackBlock[] {
+  const dimension = notifyText(event.dimension, 'dimension', SHORT_LIMIT);
+  const from = notifyText(event.from, 'from', SHORT_LIMIT);
+  const to = notifyText(event.to, 'to', SHORT_LIMIT);
+  return [
+    slackHeader('Dimension lost'),
+    slackSection(`*Dimension*\n\`${dimension}\``),
+    slackFields(`*Was*\n\`${from}\``, `*Now*\n\`${to}\``),
+    slackContext(NOTIFY_FOOTER),
+  ];
 }
 
 function slugify(value: string): string {

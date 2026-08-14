@@ -1,24 +1,86 @@
 /** OpenAPI 3.1 for Deal Truth ML. Served at GET /openapi.json; Swagger UI at GET /docs. */
 
+/**
+ * Emitted codes. `UPSTREAM_FAILED` is registered as the reserved successor name for
+ * `UPSTREAM_AI_ERROR` (same 502, same retryable) and is not currently emitted — see
+ * docs/API.md.
+ */
+const ERROR_CODES = [
+  'INVALID_REQUEST',
+  'NOT_FOUND',
+  'AUTH_FAILED',
+  'BATCH_TOO_LARGE',
+  'TEXT_TOO_LONG',
+  'QUOTA_EXCEEDED',
+  'GENERATION_DISABLED',
+  'UPSTREAM_AI_ERROR',
+  'UPSTREAM_FAILED',
+  'UPSTREAM_TIMEOUT',
+  'SCHEMA_INVALID',
+  'INTERNAL_ERROR',
+] as const;
+
 const errorSchema = {
   type: 'object',
-  required: ['error', 'request_id'],
+  description:
+    'Both shapes always hold: the nested `error` object is the shipped contract, and `error_code` / `message` are hoisted copies of the same two values. They can never disagree.',
+  required: ['error', 'error_code', 'message', 'request_id'],
   properties: {
     error: {
       type: 'object',
-      required: ['code', 'message', 'retryable'],
+      required: ['code', 'message', 'retryable', 'details'],
       properties: {
-        code: { type: 'string', example: 'INVALID_REQUEST' },
-        message: { type: 'string' },
-        retryable: { type: 'boolean' },
-        details: { type: 'object', additionalProperties: true },
+        code: { type: 'string', enum: ERROR_CODES, example: 'INVALID_REQUEST' },
+        message: { type: 'string', example: 'Request body must be valid JSON.' },
+        retryable: { type: 'boolean', example: false },
+        details: {
+          type: 'object',
+          additionalProperties: true,
+          description:
+            'Code-specific context. `model` names the failing model on UPSTREAM_AI_ERROR and UPSTREAM_TIMEOUT.',
+          example: { reason: 'malformed_json' },
+        },
       },
     },
-    request_id: { type: 'string', format: 'uuid' },
+    error_code: {
+      type: 'string',
+      enum: ERROR_CODES,
+      description: 'Mirror of error.code.',
+      example: 'INVALID_REQUEST',
+    },
+    message: {
+      type: 'string',
+      description: 'Mirror of error.message.',
+      example: 'Request body must be valid JSON.',
+    },
+    request_id: { type: 'string', example: '8b1f0c2e-5d4a-4a1b-9d0e-2f6b7c8a9d01' },
   },
 } as const;
 
 const bearer = [{ BearerAuth: [] }];
+
+/**
+ * Compat routes are marked, never broken. `Sunset` is the earliest date they may stop
+ * answering; they stay until deal-truth-api has migrated to /v1.
+ */
+const COMPAT_SUNSET = 'Thu, 31 Dec 2026 23:59:59 GMT';
+
+function compatHeaders(successor: string): Record<string, unknown> {
+  return {
+    Deprecation: {
+      description: 'RFC 9745. Always `true` on this route.',
+      schema: { type: 'string', example: 'true' },
+    },
+    Sunset: {
+      description: 'RFC 8594 HTTP-date. Earliest date this route may stop answering.',
+      schema: { type: 'string', example: COMPAT_SUNSET },
+    },
+    Link: {
+      description: 'Points at the versioned replacement.',
+      schema: { type: 'string', example: `<${successor}>; rel="successor-version"` },
+    },
+  };
+}
 
 const scoredAxis = {
   type: 'array',
@@ -64,6 +126,75 @@ const emotionsResponseSchema = {
     },
     model: { type: 'string' },
     request_id: { type: 'string' },
+  },
+} as const;
+
+const notifyRequestSchema = {
+  type: 'object',
+  required: ['type'],
+  description:
+    'One alert event. `type` selects which of the other fields apply. No webhook URL may appear anywhere in this body.',
+  properties: {
+    type: {
+      type: 'string',
+      enum: ['claim_refused', 'dimension_lost'],
+      description: 'Which event to render.',
+      example: 'claim_refused',
+    },
+    claim: {
+      type: 'string',
+      description: 'claim_refused, required. The claim the evidence gate refused.',
+      example: 'Customer has budget approved for this quarter',
+    },
+    error_code: {
+      type: 'string',
+      description: "claim_refused, required. The gate's refusal code. Always rendered.",
+      example: 'EVIDENCE_UNSUPPORTED',
+    },
+    reason: {
+      type: 'string',
+      description: 'claim_refused, optional. Renders as `_none supplied_` when absent.',
+      example: 'No segment supports this claim.',
+    },
+    evidence: {
+      type: 'string',
+      description:
+        'claim_refused, optional. Transcript quote. Rendered as an *Evidence* section only when supplied; otherwise the blocks state that none was given.',
+      example: 'Finance has not signed off yet.',
+    },
+    dimension: {
+      type: 'string',
+      description: 'dimension_lost, required. The dimension that was proven and is now gone.',
+      example: 'timeline_identified',
+    },
+    from: {
+      type: 'string',
+      description: 'dimension_lost, required. Previous state.',
+      example: 'proven',
+    },
+    to: {
+      type: 'string',
+      description: 'dimension_lost, required. Current state.',
+      example: 'missing',
+    },
+  },
+} as const;
+
+const notifyResponseSchema = {
+  type: 'object',
+  required: ['blocks', 'request_id'],
+  properties: {
+    blocks: {
+      type: 'array',
+      description:
+        'Slack Block Kit blocks. POST them to your own webhook as {"blocks": …}; this service never does.',
+      items: { type: 'object', additionalProperties: true },
+    },
+    request_id: {
+      type: 'string',
+      description: 'Correlation id. Not part of the Slack payload.',
+      example: '8b1f0c2e-5d4a-4a1b-9d0e-2f6b7c8a9d01',
+    },
   },
 } as const;
 
@@ -401,6 +532,62 @@ export const openApiSpec = {
         },
       },
     },
+    '/v1/notify/preview': {
+      post: {
+        tags: ['v1'],
+        operationId: 'notifyPreviewV1',
+        summary: 'Render an alert event as Slack Block Kit (pure formatter)',
+        description:
+          'Runs no model and sends nothing. No webhook URL is ever accepted, stored, echoed or posted to — a body carrying webhook_url, webhook, url, callback_url, slack_webhook_url, hook_url or destination is refused with 400, and any URL inside free text is replaced with "[link removed]". The caller posts the returned blocks itself.',
+        security: bearer,
+        requestBody: jsonBody(notifyRequestSchema, {
+          type: 'claim_refused',
+          claim: 'Customer has budget approved for this quarter',
+          error_code: 'EVIDENCE_UNSUPPORTED',
+          reason: 'No segment supports this claim.',
+          evidence: 'Finance has not signed off yet.',
+        }),
+        responses: {
+          '200': jsonResponse('Slack Block Kit payload', notifyResponseSchema, {
+            blocks: [
+              { type: 'header', text: { type: 'plain_text', text: 'Claim refused' } },
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: '*Claim*\n> Customer has budget approved for this quarter',
+                },
+              },
+              {
+                type: 'section',
+                fields: [
+                  { type: 'mrkdwn', text: '*Error code*\n`EVIDENCE_UNSUPPORTED`' },
+                  { type: 'mrkdwn', text: '*Reason*\nNo segment supports this claim.' },
+                ],
+              },
+              {
+                type: 'section',
+                text: { type: 'mrkdwn', text: '*Evidence*\n> Finance has not signed off yet.' },
+              },
+              {
+                type: 'context',
+                elements: [
+                  {
+                    type: 'mrkdwn',
+                    text: 'Deal Truth ML preview — rendered only. This service holds no webhook URL and sent nothing.',
+                  },
+                ],
+              },
+            ],
+            request_id: '8b1f0c2e-5d4a-4a1b-9d0e-2f6b7c8a9d01',
+          }),
+          '400': jsonResponse(
+            'Unknown type, missing required field, or a body carrying a webhook URL',
+            errorSchema,
+          ),
+        },
+      },
+    },
     '/v1/reference': {
       get: {
         tags: ['reference'],
@@ -438,6 +625,9 @@ export const openApiSpec = {
         tags: ['compat'],
         operationId: 'classifyCompat',
         summary: 'Backend alias: texts + optional labels',
+        deprecated: true,
+        description:
+          'Deprecated, not removed — the live Python pipeline still calls it. Use POST /v1/classify. Responses carry Deprecation, Sunset and Link headers.',
         security: bearer,
         requestBody: jsonBody(
           {
@@ -451,7 +641,10 @@ export const openApiSpec = {
           { texts: ['We cannot buy until security approves it.'] },
         ),
         responses: {
-          '200': jsonResponse('results[].labels', { type: 'object', additionalProperties: true }),
+          '200': {
+            ...jsonResponse('results[].labels', { type: 'object', additionalProperties: true }),
+            headers: compatHeaders('/v1/classify'),
+          },
         },
       },
     },
@@ -460,6 +653,9 @@ export const openApiSpec = {
         tags: ['compat'],
         operationId: 'emotionCompat',
         summary: 'Backend alias: emotion + intent + deal signals as labels',
+        deprecated: true,
+        description:
+          'Deprecated, not removed — the live Python pipeline still calls it. Flattens the three axes into one `labels` array and so cannot carry the `unavailable` flag; that loss is why it is deprecated. Use POST /v1/emotions.',
         security: bearer,
         requestBody: jsonBody(
           {
@@ -470,7 +666,10 @@ export const openApiSpec = {
           { texts: ['This is impressive, but there is no budget this year.'] },
         ),
         responses: {
-          '200': jsonResponse('results[].labels', { type: 'object', additionalProperties: true }),
+          '200': {
+            ...jsonResponse('results[].labels', { type: 'object', additionalProperties: true }),
+            headers: compatHeaders('/v1/emotions'),
+          },
         },
       },
     },
@@ -479,6 +678,9 @@ export const openApiSpec = {
         tags: ['compat'],
         operationId: 'embedCompat',
         summary: 'Backend alias: embeddings',
+        deprecated: true,
+        description:
+          'Deprecated, not removed — the live Python pipeline still calls it. Use POST /v1/embeddings.',
         security: bearer,
         requestBody: jsonBody(
           {
@@ -489,10 +691,13 @@ export const openApiSpec = {
           { texts: ['security approval required'] },
         ),
         responses: {
-          '200': jsonResponse('results[].embedding', {
-            type: 'object',
-            additionalProperties: true,
-          }),
+          '200': {
+            ...jsonResponse('results[].embedding', {
+              type: 'object',
+              additionalProperties: true,
+            }),
+            headers: compatHeaders('/v1/embeddings'),
+          },
         },
       },
     },
@@ -501,6 +706,9 @@ export const openApiSpec = {
         tags: ['compat'],
         operationId: 'generateCompat',
         summary: 'Backend alias: prompt → text',
+        deprecated: true,
+        description:
+          'Deprecated, not removed — the live Python pipeline still calls it. Use POST /v1/generate.',
         security: bearer,
         requestBody: jsonBody(
           {
@@ -514,7 +722,10 @@ export const openApiSpec = {
           { prompt: 'Summarize the call.', max_tokens: 40 },
         ),
         responses: {
-          '200': jsonResponse('{ text }', { type: 'object', additionalProperties: true }),
+          '200': {
+            ...jsonResponse('{ text }', { type: 'object', additionalProperties: true }),
+            headers: compatHeaders('/v1/generate'),
+          },
         },
       },
     },

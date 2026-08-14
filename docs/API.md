@@ -10,21 +10,64 @@ If `INTERNAL_API_TOKEN` is set, send `Authorization: Bearer <token>` on all `/v1
 
 ## Error envelope
 
+Every error body carries **both** the nested `error` object and the hoisted `error_code` /
+`message` mirrors. The nested object is the shipped contract the Python client reads and is
+never removed; the top-level keys are copies of the same two values, so the two can never
+disagree.
+
 ```json
 {
   "error": {
-    "code": "MODEL_NOT_READY_OR_NAMED_CODE",
-    "message": "Human readable.",
+    "code": "UPSTREAM_TIMEOUT",
+    "message": "Upstream model @cf/qwen/qwen3-embedding-0.6b timed out.",
     "retryable": true,
-    "details": {}
+    "details": { "model": "@cf/qwen/qwen3-embedding-0.6b" }
   },
-  "request_id": "..."
+  "error_code": "UPSTREAM_TIMEOUT",
+  "message": "Upstream model @cf/qwen/qwen3-embedding-0.6b timed out.",
+  "request_id": "8b1f0c2e-5d4a-4a1b-9d0e-2f6b7c8a9d01"
 }
 ```
 
-Named codes: `INVALID_REQUEST`, `BATCH_TOO_LARGE` (413), `TEXT_TOO_LONG` (413), `AUTH_FAILED` (401), `UPSTREAM_AI_ERROR` (502), `SCHEMA_INVALID` (502), `QUOTA_EXCEEDED` (429, retryable), `GENERATION_DISABLED` (503), `INTERNAL_ERROR` (500).
+| Field             | Meaning                                                                                                | Example                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| `error.code`      | Named code from the table below. The canonical field.                                                  | `"UPSTREAM_TIMEOUT"`                     |
+| `error.message`   | Human-readable, safe to log. Never a stack trace, never a token.                                       | `"Request body must be valid JSON."`     |
+| `error.retryable` | Whether retrying the identical request could succeed.                                                  | `true`                                   |
+| `error.details`   | Code-specific context. Always an object, often `{}`.                                                   | `{ "model": "@cf/openai/gpt-oss-120b" }` |
+| `error_code`      | Mirror of `error.code`. Always identical to it.                                                        | `"NOT_FOUND"`                            |
+| `message`         | Mirror of `error.message`. Always identical to it.                                                     | `"Unknown route."`                       |
+| `request_id`      | Echo of the request's `X-Request-ID`, or a generated UUID. Also returned as the `X-Request-ID` header. | `"8b1f0c2e-…"`                           |
 
-Stack traces are never returned.
+### Codes
+
+| Code                  | Status | Retryable | When                                                                       |
+| --------------------- | ------ | --------- | -------------------------------------------------------------------------- |
+| `INVALID_REQUEST`     | 400    | no        | Bad or missing fields, **or a body that is not valid JSON**.               |
+| `NOT_FOUND`           | 404    | no        | Unknown route, or an unknown/blocked `/v1/reference/{name}`.               |
+| `AUTH_FAILED`         | 401    | no        | Missing or wrong bearer token while `INTERNAL_API_TOKEN` is set.           |
+| `BATCH_TOO_LARGE`     | 413    | no        | More items than `MAX_BATCH_SIZE`.                                          |
+| `TEXT_TOO_LONG`       | 413    | no        | An item longer than `MAX_TEXT_CHARS`.                                      |
+| `QUOTA_EXCEEDED`      | 429    | yes       | Workers AI neuron budget exhausted.                                        |
+| `GENERATION_DISABLED` | 503    | no        | `ENABLE_GENERATION=false` and a generation route was called.               |
+| `UPSTREAM_AI_ERROR`   | 502    | yes       | The model call failed. `details.model` names the model that failed.        |
+| `UPSTREAM_FAILED`     | 502    | yes       | **Reserved successor name for `UPSTREAM_AI_ERROR`** — see the note below.  |
+| `UPSTREAM_TIMEOUT`    | 504    | yes       | The model call timed out. `details.model` names the model that timed out.  |
+| `SCHEMA_INVALID`      | 502    | yes       | The model answered with something that is not the expected JSON shape.     |
+| `INTERNAL_ERROR`      | 500    | yes       | A fault on this side. Never used for a bad request or an upstream failure. |
+
+**`UPSTREAM_FAILED` is defined but not emitted.** The wire code for a failed model call is
+`UPSTREAM_AI_ERROR`, which is what `deal-truth-api` matches on today. `UPSTREAM_FAILED` is
+registered with the identical status (502) and `retryable: true` so the two are already
+interchangeable; when the Python client stops matching the old name, the emitted code can be
+switched without any other behaviour changing. Treat them as equivalent.
+
+**`details.model`** is present on `UPSTREAM_AI_ERROR` and `UPSTREAM_TIMEOUT`. It is the model
+id of the **most recent failed model call in that request** — for a two-stage route such as
+`/v1/analyze-call`, the stage that actually fell over.
+
+A 404 says 404 and a malformed body says 400, so the status alone tells you which side of the
+wire to look at. Stack traces are never returned.
 
 ## Endpoints
 
@@ -143,6 +186,93 @@ Stage 1 Qwen candidates, stage 2 GPT-OSS judge. Response:
 
 Each insight carries `segment_ids` only.
 
+### `POST /v1/notify/preview`
+
+Pure formatter: renders one alert event into Slack [Block Kit](https://api.slack.com/block-kit)
+blocks. It runs no model, opens no connection, and **never accepts, stores, echoes or posts to
+a webhook URL** — the caller posts the returned `blocks` itself.
+
+Request — `type` selects the event:
+
+```json
+{
+  "type": "claim_refused",
+  "claim": "Customer has budget approved for this quarter",
+  "error_code": "EVIDENCE_UNSUPPORTED",
+  "reason": "No segment supports this claim.",
+  "evidence": "Finance has not signed off yet."
+}
+```
+
+| Field        | Event            | Required | Meaning                                                                                                                              | Example                             |
+| ------------ | ---------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| `type`       | both             | yes      | `"claim_refused"` or `"dimension_lost"`. Anything else is a 400.                                                                     | `"claim_refused"`                   |
+| `claim`      | `claim_refused`  | yes      | The claim the evidence gate refused. Rendered as a quote.                                                                            | `"Customer has budget approved"`    |
+| `error_code` | `claim_refused`  | yes      | The gate's refusal code. Always rendered in the blocks.                                                                              | `"EVIDENCE_UNSUPPORTED"`            |
+| `reason`     | `claim_refused`  | no       | Why it was refused. Absent renders as `_none supplied_`.                                                                             | `"No segment supports this claim."` |
+| `evidence`   | `claim_refused`  | no       | Transcript quote. Rendered as an `*Evidence*` section **only when supplied**; otherwise the blocks say outright that none was given. | `"Finance has not signed off yet."` |
+| `dimension`  | `dimension_lost` | yes      | The dimension that was proven last call and is now gone.                                                                             | `"timeline_identified"`             |
+| `from`       | `dimension_lost` | yes      | Previous state.                                                                                                                      | `"proven"`                          |
+| `to`         | `dimension_lost` | yes      | Current state.                                                                                                                       | `"missing"`                         |
+
+Response:
+
+```json
+{
+  "blocks": [
+    { "type": "header", "text": { "type": "plain_text", "text": "Claim refused" } },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Claim*\n> Customer has budget approved for this quarter"
+      }
+    },
+    {
+      "type": "section",
+      "fields": [
+        { "type": "mrkdwn", "text": "*Error code*\n`EVIDENCE_UNSUPPORTED`" },
+        { "type": "mrkdwn", "text": "*Reason*\nNo segment supports this claim." }
+      ]
+    },
+    {
+      "type": "section",
+      "text": { "type": "mrkdwn", "text": "*Evidence*\n> Finance has not signed off yet." }
+    },
+    {
+      "type": "context",
+      "elements": [
+        {
+          "type": "mrkdwn",
+          "text": "Deal Truth ML preview — rendered only. This service holds no webhook URL and sent nothing."
+        }
+      ]
+    }
+  ],
+  "request_id": "8b1f0c2e-…"
+}
+```
+
+| Field        | Meaning                                                                   | Example        |
+| ------------ | ------------------------------------------------------------------------- | -------------- |
+| `blocks`     | Slack Block Kit array. POST it to your own webhook as `{"blocks": …}`.    | see above      |
+| `request_id` | Correlation id, same as every other route. Not part of the Slack payload. | `"8b1f0c2e-…"` |
+
+`dimension_lost` renders a `Dimension lost` header, the dimension, and `*Was*` / `*Now*` fields.
+
+**Webhook safety.** The invariant is that no destination can travel through this service:
+
+- A body carrying `webhook_url`, `webhook`, `url`, `callback_url`, `slack_webhook_url`,
+  `hook_url` or `destination` is refused with `400 INVALID_REQUEST` and
+  `details.rejected_fields` listing the offending **names** (never their values). Refusing
+  loudly rather than ignoring means a caller can never believe an alert was delivered when
+  nothing was sent.
+- Any URL pasted into free text (`claim`, `reason`, `evidence`, …) is replaced with
+  `[link removed]` before rendering, so a webhook cannot survive a round trip.
+- `&`, `<` and `>` are escaped, which also disarms Slack's `<url|label>` link syntax.
+- Strings are trimmed to 2000 characters (128 for `error_code`, `dimension`, `from`, `to`) to
+  stay inside Slack's block limits.
+
 ## Compat aliases (backend `DealTruthMLClient`)
 
 | Route            | Request                                                            | Response                                      |
@@ -153,6 +283,46 @@ Each insight carries `segment_ids` only.
 | `POST /generate` | `{ prompt, max_tokens? }`                                          | `{ text }`                                    |
 
 The parser in `deal-truth/app/ml/__init__.py` accepts `results` / `data` / `items`.
+
+### Deprecated — but still live
+
+All four aliases are **deprecated, not removed**. They keep answering exactly as before, byte
+for byte, and are only marked. They will not be deleted until `deal-truth-api` has migrated to
+the `/v1` routes; deleting them earlier would break the running pipeline.
+
+Every response from `/classify`, `/emotion`, `/embed` and `/generate` carries:
+
+| Header        | Value                                     | Meaning                                                         |
+| ------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| `Deprecation` | `true`                                    | RFC 9745. This route is deprecated as of now.                   |
+| `Sunset`      | `Thu, 31 Dec 2026 23:59:59 GMT`           | RFC 8594 HTTP-date. Earliest date the route may stop answering. |
+| `Link`        | `</v1/emotions>; rel="successor-version"` | Where to go instead. Per route, see below.                      |
+
+| Compat route | `Link` successor |
+| ------------ | ---------------- |
+| `/classify`  | `/v1/classify`   |
+| `/emotion`   | `/v1/emotions`   |
+| `/embed`     | `/v1/embeddings` |
+| `/generate`  | `/v1/generate`   |
+
+Each call also logs a warning so the remaining callers can be chased by name rather than
+guessed at:
+
+```json
+{
+  "level": "warn",
+  "event": "compat.deprecated_route",
+  "path": "/emotion",
+  "successor": "/v1/emotions",
+  "sunset": "Thu, 31 Dec 2026 23:59:59 GMT",
+  "user_agent": "deal-truth-api/1.4 python-httpx/0.27",
+  "request_id": "8b1f0c2e-…"
+}
+```
+
+`user_agent` is the caller's `User-Agent`, or `"unknown"` when it sends none.
+
+The `/v1` routes carry **no** `Deprecation` or `Sunset` header.
 
 **Compat `/emotion` cannot carry the `unavailable` flag.** It flattens the three axes into
 one `labels` array, so an axis that was never scored is indistinguishable from one that
