@@ -15,9 +15,17 @@ The API `.env.example` already has `ML_SERVICE_BASE_URL=http://host.docker.inter
 
 ## Production (Cloudflare Worker)
 
+Do **not** deploy the Dockerfile to Render (or any PaaS). That runs `wrangler dev`, which is local-only and will fail with RPC size-limit errors.
+
 ```bash
 npx wrangler secret put INTERNAL_API_TOKEN
 npx wrangler deploy
+```
+
+Live URL after deploy:
+
+```text
+https://deal-truth-ml.debjyotipandit35.workers.dev
 ```
 
 You must add:
@@ -32,7 +40,7 @@ Already in `wrangler.jsonc` (no fill): `ENABLE_GENERATION`, model IDs, batch lim
 Then on the **API** VM:
 
 ```text
-ML_SERVICE_BASE_URL=https://deal-truth-ml.<ACCOUNT>.workers.dev
+ML_SERVICE_BASE_URL=https://deal-truth-ml.debjyotipandit35.workers.dev
 ML_SERVICE_API_KEY=<same INTERNAL_API_TOKEN>
 ML_GENERATION_ENABLED=true
 ```

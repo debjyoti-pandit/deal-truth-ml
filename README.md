@@ -221,10 +221,16 @@ npx wrangler secret put INTERNAL_API_TOKEN
 npx wrangler deploy
 ```
 
+Do **not** run this Docker image on Render. Production is the Worker at:
+
+```text
+https://deal-truth-ml.debjyotipandit35.workers.dev
+```
+
 Then in **deal-truth** production env:
 
 ```text
-ML_SERVICE_BASE_URL=https://deal-truth-ml.<account>.workers.dev
+ML_SERVICE_BASE_URL=https://deal-truth-ml.debjyotipandit35.workers.dev
 ML_SERVICE_API_KEY=<same as INTERNAL_API_TOKEN>
 ```
 

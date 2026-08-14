@@ -63,7 +63,7 @@ if [ -n "${TUNNEL}" ]; then
   echo "  Inspector:  ${INSPECTOR}"
   echo "  Same-machine API (Docker):"
   echo "    ML_SERVICE_BASE_URL=http://host.docker.internal:8081"
-  echo "  Deployed:     ML_SERVICE_BASE_URL=https://deal-truth-ml.onrender.com"
+  echo "  Deployed:     ML_SERVICE_BASE_URL=https://deal-truth-ml.debjyotipandit35.workers.dev"
   case "${TUNNEL}" in
     *://*.ngrok-free.app|*://*.ngrok.dev)
       echo "  Remote API:"

@@ -41,7 +41,9 @@ Same port **8081**. ngrok still comes from `make up` (Compose). Host-only `make 
 
 ## Production
 
-This service is a Cloudflare Worker. The Docker image is for **local** wrangler only.
+This service is a Cloudflare Worker. Deploy with `wrangler deploy`, not Docker and **not Render**.
+
+The Docker image runs `wrangler dev` for local use only. On Render that process opens a remote RPC tunnel, floods logs with Cap’n Proto size-limit errors, and is not a supported production host.
 
 ```bash
 npx wrangler secret put INTERNAL_API_TOKEN
@@ -49,7 +51,7 @@ npx wrangler deploy
 ```
 
 ```text
-ML_SERVICE_BASE_URL=https://deal-truth-ml.<account>.workers.dev
+ML_SERVICE_BASE_URL=https://deal-truth-ml.debjyotipandit35.workers.dev
 ML_SERVICE_API_KEY=<same as INTERNAL_API_TOKEN>
 ```
 
