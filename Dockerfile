@@ -18,6 +18,8 @@ COPY worker-configuration.d.ts ./
 EXPOSE 8081
 
 HEALTHCHECK --interval=5s --timeout=5s --start-period=40s --retries=12 \
-  CMD curl -fsS http://127.0.0.1:8081/health/live || exit 1
+  CMD curl -fsS "http://127.0.0.1:${PORT:-8081}/health/live" || exit 1
 
-CMD ["npx", "wrangler", "dev", "--ip", "0.0.0.0", "--port", "8081"]
+# Render (and most PaaS) route traffic to $PORT; locally it is unset and 8081 keeps
+# the compose/Makefile behaviour. Shell form so the variable actually expands.
+CMD ["sh", "-c", "npx wrangler dev --ip 0.0.0.0 --port ${PORT:-8081}"]
