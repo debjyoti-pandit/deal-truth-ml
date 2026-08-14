@@ -63,17 +63,15 @@ if [ -n "${TUNNEL}" ]; then
   echo "  Inspector:  ${INSPECTOR}"
   echo "  Same-machine API (Docker):"
   echo "    ML_SERVICE_BASE_URL=http://host.docker.internal:8081"
-  echo "    ML_NGROK_DOMAIN  is written to sibling deal-truth/.env"
+  echo "  Deployed:     ML_SERVICE_BASE_URL=https://deal-truth-ml.onrender.com"
   case "${TUNNEL}" in
     *://*.ngrok-free.app|*://*.ngrok.dev)
       echo "  Remote API:"
       echo "    ML_SERVICE_BASE_URL=${TUNNEL}"
       bash scripts/persist_ngrok_domain.sh "${TUNNEL}" || true
-      bash scripts/sync_ml_url_to_api.sh "${TUNNEL}" || true
       ;;
     *)
       echo "  Public ML this session: ${TUNNEL} (ephemeral; not pinned)."
-      bash scripts/sync_ml_url_to_api.sh || true
       ;;
   esac
 else

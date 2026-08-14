@@ -171,8 +171,8 @@ cd deal-truth && make up
 Done (as of 2026-08-13):
 
 1. ~~Wire the API~~ — the API resolves this Worker via `ML_SERVICE_BASE_URL` →
-   `https://{ML_NGROK_DOMAIN}` → `http://localhost:8081`; `make up` here writes
-   `ML_NGROK_DOMAIN` into `deal-truth/.env`. Bearer = `INTERNAL_API_TOKEN`.
+   `http://localhost:8081` (deployed: `https://deal-truth-ml.onrender.com`; the
+   `ML_NGROK_DOMAIN` fallback is retired). Bearer = `INTERNAL_API_TOKEN`.
 2. ~~Vector migration~~ — `transcript_chunks.embedding` is `VECTOR(1024)` (API migration
    `0002_embedding_1024`); Qwen3 1024-dim embeddings index cleanly.
 3. Slug labels (`pain_point`) are mapped back to extractor keys API-side

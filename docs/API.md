@@ -361,8 +361,9 @@ reason the route is deprecated; use `/v1/emotions` for per-axis degradation.
 
 What the backend does with these routes — useful when debugging an integration:
 
-- **Base URL resolution** (API side): `ML_SERVICE_BASE_URL` → `https://{ML_NGROK_DOMAIN}` →
-  `http://localhost:8081`. `make up` here writes `ML_NGROK_DOMAIN` into `deal-truth/.env`.
+- **Base URL resolution** (API side): `ML_SERVICE_BASE_URL` → `http://localhost:8081` (local
+  wrangler dev). Deployed service: `https://deal-truth-ml.onrender.com`. The ngrok fallback
+  (`ML_NGROK_DOMAIN`) is retired — the API no longer reads it.
 - **Auth**: API sends `Authorization: Bearer {ML_SERVICE_API_KEY}`; must equal this Worker's
   `INTERNAL_API_TOKEN` (both empty locally). Ngrok hosts get `ngrok-skip-browser-warning`.
 - **Batching**: the API speaks `/v1` and chunks classify/emotions/embeddings client-side to
