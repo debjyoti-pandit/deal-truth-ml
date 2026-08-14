@@ -365,8 +365,12 @@ What the backend does with these routes — useful when debugging an integration
   `http://localhost:8081`. `make up` here writes `ML_NGROK_DOMAIN` into `deal-truth/.env`.
 - **Auth**: API sends `Authorization: Bearer {ML_SERVICE_API_KEY}`; must equal this Worker's
   `INTERNAL_API_TOKEN` (both empty locally). Ngrok hosts get `ngrok-skip-browser-warning`.
-- **Timeout**: the API allows a **300s** read timeout because compat classify/emotion chunk
-  batches sequentially inside a single HTTP request.
+- **Batching**: the API speaks `/v1` and chunks classify/emotions/embeddings client-side to
+  its `ML_MAX_BATCH_SIZE` (default 32 — keep it ≤ this Worker's `MAX_BATCH_SIZE`, which
+  `/health/ready` advertises), reassembling results in input order. An hour-long call is many
+  bounded requests; `413 BATCH_TOO_LARGE` should never occur in normal operation.
+- **Timeout**: the API allows a **300s** read timeout **per request**; this Worker further
+  sub-chunks LLM prompts internally (3–4 items per model call).
 - **Labels**: compat `/classify` returns slug ids (`pain_point`); the API maps them back to
   its extractor keys (`pain point`) with `canonical_sales_label`, so either form is safe.
 - **Embeddings**: `/embed` vectors are 1024-dim and stored in pgvector `vector(1024)`
