@@ -17,7 +17,7 @@ import { countChars, newRequestId } from './core/request';
 import { ModelClient } from './ai/client';
 import type { AiBinding } from './ai/client';
 import { ModelRouter } from './ai/router';
-import { SALES_LABELS } from './taxonomies/sales-labels';
+import { DIMENSIONS, DIMENSION_MAP, SALES_LABELS } from './taxonomies/sales-labels';
 import { analyzeCall } from './services/analyze';
 import { classifyItems } from './services/classify';
 import { embedItems } from './services/embeddings';
@@ -250,7 +250,11 @@ export function createApp(env: Env): Hono<AppEnv> {
     }),
   );
 
-  app.get('/v1/sales-labels', (c) => c.json({ labels: SALES_LABELS }));
+  // The 8 dimensions and the label -> dimension map ship with the catalogue so the API
+  // never has to hardcode or guess the mapping the proof ring is drawn from.
+  app.get('/v1/sales-labels', (c) =>
+    c.json({ labels: SALES_LABELS, dimensions: DIMENSIONS, dimension_map: DIMENSION_MAP }),
+  );
 
   const mountReference = (prefix: string) => {
     app.get(`${prefix}/reference`, (c) =>

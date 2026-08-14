@@ -62,6 +62,21 @@ export function generatePrompt(task: string, input: string): string {
   return `${instruction}\n\nInput:\n${input}`;
 }
 
+// One aimed retry, with the validator's own reason codes attached so the second attempt is
+// corrective rather than a blind re-roll. The rules are described in words on purpose: naming
+// the forbidden tokens literally would put them in the context the model copies from, which is
+// how they leaked in the first place.
+export function regeneratePrompt(task: string, input: string, problems: string[]): string {
+  const reasons = problems.length > 0 ? problems.join(', ') : 'the output did not match its shape';
+  return `${generatePrompt(task, input)}
+
+Your previous answer was rejected by an automatic validator (${reasons}).
+Return only the finished text for the task, nothing else.
+Do not restate these instructions, do not label the answer with a speaker or role name, do not
+emit chat template delimiters, placeholder braces, or numeric confidence fields, and do not open
+with a sentence announcing what you are about to return.`;
+}
+
 export function candidatesPrompt(
   segments: { id: string; speaker_role: string; text: string }[],
 ): string {

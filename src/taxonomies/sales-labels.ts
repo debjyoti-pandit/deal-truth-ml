@@ -187,6 +187,101 @@ export const SALES_LABELS: SalesLabel[] = [
   },
 ];
 
+/**
+ * The eight buying-intent dimensions the UI renders as the proof ring.
+ *
+ * The ring is a claim about evidence, so every segment of it has to be traceable to a label
+ * that was actually scored. Anything the 24 labels cannot reach is a dimension the API would
+ * have to guess at, and a guessed segment renders identically to a proven one.
+ */
+export const DIMENSIONS = [
+  'pain_identified',
+  'business_impact_identified',
+  'decision_maker_identified',
+  'economic_buyer_identified',
+  'timeline_identified',
+  'next_meeting_committed',
+  'competitor_active',
+  'blocker_active',
+] as const;
+
+export type Dimension = (typeof DIMENSIONS)[number];
+
+/**
+ * Every label maps to exactly one dimension, or to `null` for informational-only labels.
+ *
+ * `null` is a decision, not an omission: those labels are real classifier output that simply
+ * is not evidence for any of the eight. Folding them in to look thorough is how a ring starts
+ * showing progress that never happened.
+ */
+const LABEL_DIMENSIONS = {
+  // --- Pain and impact -------------------------------------------------------------------
+  pain_point: 'pain_identified',
+  // The taxonomy has no dedicated impact label (see docs/MODELS.md — this is the known gap).
+  // A customer concern is the closest thing to a stated consequence of the current state or
+  // of the change, so it carries this dimension until a `business_impact` label exists.
+  customer_concern: 'business_impact_identified',
+
+  // --- Qualification ---------------------------------------------------------------------
+  decision_maker_identified: 'decision_maker_identified',
+  economic_buyer_identified: 'economic_buyer_identified',
+  purchase_timeline: 'timeline_identified',
+
+  // --- Commitment ------------------------------------------------------------------------
+  next_meeting_commitment: 'next_meeting_committed',
+  // A commitment to send a deck or make an introduction is a real commitment but not a booked
+  // next meeting. Mapping it here would light the ring segment for a meeting nobody agreed to.
+  customer_commitment: null,
+  seller_commitment: null,
+
+  // --- Competitors -----------------------------------------------------------------------
+  competitor_mention: 'competitor_active',
+  competitor_preference: 'competitor_active',
+
+  // --- Blockers --------------------------------------------------------------------------
+  // One dimension, several causes: the ring says whether something is blocking, and the
+  // contributing label says what. `timing_blocker` belongs here and not under
+  // `timeline_identified` — "we can't do this before Q3" is an obstacle, not a stated plan.
+  pricing_objection: 'blocker_active',
+  security_blocker: 'blocker_active',
+  technical_blocker: 'blocker_active',
+  budget_blocker: 'blocker_active',
+  timing_blocker: 'blocker_active',
+  explicit_rejection: 'blocker_active',
+
+  // --- Informational only ----------------------------------------------------------------
+  // Sentiment and intent, scored on their own axis. The three axes are never merged, and
+  // promoting an intent score into an evidence dimension would merge them by the back door.
+  positive_buying_signal: null,
+  negative_buying_signal: null,
+  customer_praise: null,
+  // Requirements describe what the product must do, not how far the deal has progressed.
+  feature_requirement: null,
+  integration_requirement: null,
+  out_of_scope_request: null,
+  // Questions and information gaps are conversation texture, not proof of a dimension.
+  customer_question: null,
+  clarification_needed: null,
+} as const satisfies Record<string, Dimension | null>;
+
+export type SalesLabelId = keyof typeof LABEL_DIMENSIONS;
+
+export const DIMENSION_MAP: Readonly<Record<SalesLabelId, Dimension | null>> = LABEL_DIMENSIONS;
+
+/** The dimension a label contributes to; `null` if informational, `undefined` if unknown. */
+export function dimensionForLabel(labelId: string): Dimension | null | undefined {
+  return Object.prototype.hasOwnProperty.call(DIMENSION_MAP, labelId)
+    ? DIMENSION_MAP[labelId as SalesLabelId]
+    : undefined;
+}
+
+/** Every label that can light a given dimension. Never empty — see test/unit/dimension-map. */
+export function labelsForDimension(dimension: Dimension): SalesLabelId[] {
+  return (Object.keys(DIMENSION_MAP) as SalesLabelId[]).filter(
+    (id) => DIMENSION_MAP[id] === dimension,
+  );
+}
+
 export function salesLabelById(id: string): SalesLabel | undefined {
   return SALES_LABELS.find((label) => label.id === id);
 }

@@ -97,7 +97,13 @@ Raw markdown for one allowlisted file (for example `API.md`, `MODELS.md`). Unkno
 
 ### `GET /v1/sales-labels`
 
-Default 24-label catalogue: `id`, `display_name`, `hypothesis`, `category`, `threshold`.
+Default 24-label catalogue plus the dimension mapping the proof ring is drawn from:
+
+- `labels` — 24 entries: `id`, `display_name`, `hypothesis`, `category`, `threshold`.
+- `dimensions` — the 8 buying-intent dimensions the UI renders, in render order.
+- `dimension_map` — every label id to exactly one dimension, or `null` for informational
+  labels that contribute to no dimension. Shipped here so `deal-truth-api` never has to
+  hardcode or guess the mapping. Full table with rationale: [MODELS.md](MODELS.md).
 
 ### `POST /v1/classify`
 
@@ -157,7 +163,25 @@ Request: `{ items: [{id, text}], normalize? }`. Response: `id`, `vector`, `dimen
 
 ### `POST /v1/rerank`
 
-Request: `{ query, passages: [{id, text}], top_k? }`. Response: ranked `{id, score, index}`.
+Request: `{ query, passages: [{id, text}], top_k? }`.
+Response: `{ items: [{id, score, index}], model, request_id }`.
+
+`bge-reranker-base` scores every passage against the query. `id` is the caller's own passage id;
+`index` is that passage's position in the request array. Guarantees Ask-the-Call can rely on:
+
+- **Ranked.** `items` is sorted by `score` descending. The model's own row order is never trusted.
+- **Stable.** Ties break by input order, so two identical requests rank identically. Evidence does
+  not reshuffle between two identical asks.
+- **Total.** Every passage comes back unless `top_k` cuts it. A score the model returns as
+  non-numeric sorts last rather than scrambling the ranking — it never drops the passage.
+- **`top_k` applies after ranking**, not before, and is capped at 50.
+
+An empty `passages` array is an ordinary empty result, not a client error: `200` with
+`{"items": []}`, and no inference call is spent. Retrieval finding nothing is a normal outcome for
+Ask, and a `400` there reads to the caller as a bug in its own query construction.
+
+Limits: more than `MAX_BATCH_SIZE` passages is `413 BATCH_TOO_LARGE`; a passage or query over
+`MAX_TEXT_CHARS` is `413 TEXT_TOO_LONG`.
 
 ### `POST /v1/generate`
 
